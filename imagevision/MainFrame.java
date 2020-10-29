@@ -17,11 +17,14 @@ public class MainFrame extends JFrame {
     private int activeImage = 0;
     private JDesktopPane desktopPane = new JDesktopPane();
 
+    private Dimension dim;
+
     public MainFrame() {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+        dim = Toolkit.getDefaultToolkit().getScreenSize();
         setBounds(0, 0, dim.width, dim.height); 
     }
+
     private void createLayout() {
         setJMenuBar(createMenu());
         
@@ -30,6 +33,7 @@ public class MainFrame extends JFrame {
         desktopPane.setVisible(true);
         setVisible(true);
     }
+
     public static String chooseFile() {
         JFileChooser fc = new JFileChooser();
         int ret = fc.showOpenDialog(null);
@@ -49,18 +53,25 @@ public class MainFrame extends JFrame {
         var img = imgP.getImage();
         var panel = new ImagePanel(img);
         var internalFrame = new JInternalFrame(imgP.getFileName(),false,true,true,true);
+
         internalFrame.add(panel);
         desktopPane.add(internalFrame);
         ImagePanel imgPanel = (ImagePanel) internalFrame.getContentPane().getComponent(0);
-        for (ImageProcessor i : images){
-            if ((Object)i == (Object)imgPanel.getImage())
-                System.out.println (i.getFileName());  
-            else
-                System.out.println ("no");
-        }
-        System.out.println (imgPanel.str);
+
+        // Update activeImage
+        activeImage = images.indexOf(findImage(imgPanel.getImage()).get());
+        System.out.println(activeImage);
+        
         internalFrame.pack();
         internalFrame.setVisible(true);
+    }
+
+    private Optional<ImageProcessor> findImage (BufferedImage img) {
+        for (ImageProcessor i : images){
+            if (i.getImage() == img)
+                return Optional.of(i);
+        }
+        return Optional.empty();
     }
 
     public static void main(String[] args) {  
@@ -92,9 +103,15 @@ public class MainFrame extends JFrame {
         mb.add(menuFile);
         mb.add(menuData);
 
-        // Menu Item
+        // Menu Items
         var miOpen = new JMenuItem("Open");
         menuFile.add(miOpen);
+
+        var miInfo = new JMenuItem("Info");
+        menuData.add(miInfo);
+        var miHisto = new JMenuItem("Histogram");
+        menuData.add(miHisto);
+
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -103,6 +120,32 @@ public class MainFrame extends JFrame {
                 addImage(imgP);
             }
         });
+
+        miInfo.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e){
+                var imgP = images.get(activeImage);
+                var range = imgP.getRange();
+                JOptionPane.showMessageDialog(null,
+                    "Size: " + imgP.getImage().getWidth() + "x" + imgP.getImage().getHeight() +
+                    "\nFile type: " + imgP.getMimeType() +
+                    "\nGrat Range: [" + range[0] + ", " + range[1] + "]"
+                );
+            }
+        });
+
+        miHisto.addActionListener(new ActionListener() { 
+            public void actionPerformed(ActionEvent e) { 
+                var chart = new ChartPanel(images.get(activeImage).getHistogram(), new String[]{},"HISTOGRAM");
+                var chartFrame = new JFrame();
+                chartFrame.add(chart);
+                chartFrame.setBounds(dim.width/3,dim.height/3, dim.width/3, dim.height/3);
+                chartFrame.setVisible(true);
+            } 
+        });
+
+
+
+
         /*mi1=new JMenuItem("Información");
         menuDatos.add(mi1);
         mi2=new JMenuItem("Histograma");
@@ -114,17 +157,7 @@ public class MainFrame extends JFrame {
             } 
         });
 
-        mi1.addActionListener(new ActionListener() { 
-            public void actionPerformed(ActionEvent e) { 
-                var range = processor.getRange();
-                JOptionPane.showMessageDialog(frame, 
-                    "Size: " + img.getWidth() + "x" + img.getHeight() +
-                    "\nFile type: " + processor.getMimeType() +
-                    "\nGrat Range: [" + range[0] + ", " + range[1] + "]"
-                );
-
-            } 
-        });*/
+        */
         return mb;
     }
 } 
