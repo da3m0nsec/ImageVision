@@ -11,6 +11,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import java.util.*;
+
+// TO-DO
+// Implement active image listener
+
 public class MainFrame extends JFrame { 
 
     private ArrayList<ImageProcessor> images = new ArrayList<ImageProcessor>();
@@ -57,13 +61,15 @@ public class MainFrame extends JFrame {
         internalFrame.add(panel);
         desktopPane.add(internalFrame);
         ImagePanel imgPanel = (ImagePanel) internalFrame.getContentPane().getComponent(0);
-
-        // Update activeImage
-        activeImage = images.indexOf(findImage(imgPanel.getImage()).get());
-        System.out.println(activeImage);
         
         internalFrame.pack();
         internalFrame.setVisible(true);
+    }
+
+    private Optional<ImageProcessor> getActiveImage () {
+        var comp = desktopPane.getSelectedFrame().getContentPane().getComponent(0);
+        var img = (ImagePanel)comp;
+        return findImage(img.getImage());
     }
 
     private Optional<ImageProcessor> findImage (BufferedImage img) {
@@ -77,23 +83,9 @@ public class MainFrame extends JFrame {
     public static void main(String[] args) {  
 
         var frame = new MainFrame(); //creating instance of JFrame 
-        frame.createLayout();
-        /*
-        
-        // CHART
-        var chart = new ChartPanel(processor.getHistogram(), new String[]{},"HISTOGRAMA");
-        
-        var chartFrame = new JFrame();
-        chartFrame.add(chart);
-        chartFrame.setBounds(0,0, dim.width/3, dim.height/3);*/
-
-        // TOOLBAR
-        //JToolBar barraBotones = new JToolBar();
-        // VISIBLES FRAMES
-        
-        
-        
+        frame.createLayout();      
     }
+
     private JMenuBar createMenu() {
         // Top level menu
         var mb = new JMenuBar();
@@ -123,7 +115,7 @@ public class MainFrame extends JFrame {
 
         miInfo.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e){
-                var imgP = images.get(activeImage);
+                var imgP = getActiveImage().get();
                 var range = imgP.getRange();
                 JOptionPane.showMessageDialog(null,
                     "Size: " + imgP.getImage().getWidth() + "x" + imgP.getImage().getHeight() +
@@ -135,29 +127,14 @@ public class MainFrame extends JFrame {
 
         miHisto.addActionListener(new ActionListener() { 
             public void actionPerformed(ActionEvent e) { 
-                var chart = new ChartPanel(images.get(activeImage).getHistogram(), new String[]{},"HISTOGRAM");
+                var chart = new ChartPanel(getActiveImage().get().getHistogram(), new String[]{},"HISTOGRAM");
                 var chartFrame = new JFrame();
                 chartFrame.add(chart);
                 chartFrame.setBounds(dim.width/3,dim.height/3, dim.width/3, dim.height/3);
                 chartFrame.setVisible(true);
             } 
         });
-
-
-
-
-        /*mi1=new JMenuItem("Información");
-        menuDatos.add(mi1);
-        mi2=new JMenuItem("Histograma");
-        menuDatos.add(mi2);
         
-        mi2.addActionListener(new ActionListener() { 
-            public void actionPerformed(ActionEvent e) { 
-                chartFrame.setVisible(true);
-            } 
-        });
-
-        */
         return mb;
     }
 } 
