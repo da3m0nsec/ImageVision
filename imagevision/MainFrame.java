@@ -1,6 +1,9 @@
 package imagevision;
 
-import javax.swing.*;  
+import javax.swing.*;
+import javax.swing.event.*;
+
+
 import java.nio.file.*;
 import java.awt.*;
 import java.awt.image.*;
@@ -11,16 +14,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import java.util.*;
-
+import java.lang.Math;
 // TO-DO
 // Implement active image listener
 
 public class MainFrame extends JFrame { 
 
-    private ArrayList<ImageProcessor> images = new ArrayList<ImageProcessor>();
-    private int activeImage = 0;
-    private JDesktopPane desktopPane = new JDesktopPane();
+    private static final long serialVersionUID = -477785003793521810L;
 
+    private ArrayList<ImageProcessor> images = new ArrayList<ImageProcessor>();
+    private ImageProcessor activeImage;
+    private ImagePanel activePanel;
+    private JDesktopPane desktopPane = new JDesktopPane();
+    private JLabel mouseLabel;
     private Dimension dim;
 
     public MainFrame() {
@@ -31,10 +37,36 @@ public class MainFrame extends JFrame {
 
     private void createLayout() {
         setJMenuBar(createMenu());
-        
+
         add(desktopPane);
 
         desktopPane.setVisible(true);
+        desktopPane.addMouseMotionListener(new MouseMotionListener() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int globalX = e.getX();
+                int globalY = e.getY();
+                if (activePanel == null) {
+                    return;
+                }
+
+                Rectangle rect = activePanel.getBounds();
+                int x = globalX - rect.x;
+                int y = globalY - rect.y;
+                if (x > rect.width || x <= 0 || y > rect.height || y <= 0) {
+                    return;
+                }
+
+                int grayLevel = new Color(activePanel.getImage().getRGB(x, y)).getGreen();
+
+            }
+            @Override
+            public void mouseDragged (MouseEvent e){
+                
+            }
+        });
+        mouseLabel = new JLabel("x: ,y: ");
+        add()
         setVisible(true);
     }
 
@@ -57,19 +89,33 @@ public class MainFrame extends JFrame {
         var img = imgP.getImage();
         var panel = new ImagePanel(img);
         var internalFrame = new JInternalFrame(imgP.getFileName(),false,true,true,true);
-
+        internalFrame.addInternalFrameListener(new InternalFrameAdapter(){
+            @Override
+            public void internalFrameActivated(InternalFrameEvent e) {
+                var comp = e.getInternalFrame().getContentPane().getComponent(0);
+                activePanel = (ImagePanel)comp;
+                activeImage = getActiveImage().get();
+            }
+            public void internalFrameClosed(InternalFrameEvent e) {
+                images.remove(getImageFromFrame(e.getInternalFrame()).get());
+            }
+        });
         internalFrame.add(panel);
         desktopPane.add(internalFrame);
-        ImagePanel imgPanel = (ImagePanel) internalFrame.getContentPane().getComponent(0);
+        //var imgPanel = (ImagePanel) internalFrame.getContentPane().getComponent(0);
         
         internalFrame.pack();
         internalFrame.setVisible(true);
     }
 
-    private Optional<ImageProcessor> getActiveImage () {
-        var comp = desktopPane.getSelectedFrame().getContentPane().getComponent(0);
+    private Optional<ImageProcessor> getImageFromFrame (JInternalFrame j) {
+        var comp = j.getContentPane().getComponent(0);
         var img = (ImagePanel)comp;
         return findImage(img.getImage());
+    }
+
+    private Optional<ImageProcessor> getActiveImage () {
+        return getImageFromFrame(desktopPane.getSelectedFrame());
     }
 
     private Optional<ImageProcessor> findImage (BufferedImage img) {
@@ -115,12 +161,14 @@ public class MainFrame extends JFrame {
 
         miInfo.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e){
-                var imgP = getActiveImage().get();
+                var imgP = activeImage;
                 var range = imgP.getRange();
                 JOptionPane.showMessageDialog(null,
                     "Size: " + imgP.getImage().getWidth() + "x" + imgP.getImage().getHeight() +
                     "\nFile type: " + imgP.getMimeType() +
-                    "\nGrat Range: [" + range[0] + ", " + range[1] + "]"
+                    "\nGray Range: [" + range[0] + ", " + range[1] + "]" +
+                    "\nBrightness: " + imgP.getBrightness() + " Contrast: " + imgP.getContrast() +
+                    "\nEntropy: " + imgP.getEntropy()
                 );
             }
         });
@@ -141,7 +189,7 @@ public class MainFrame extends JFrame {
 
 class ImagePanel extends JPanel{
 
-    public String str = "hello";
+
 
     private BufferedImage image;
 
@@ -172,6 +220,19 @@ class ImageProcessor {
     private double [] histogram = new double[256];
     private String mimeType;
     private int minGray = 256, maxGray = 0;
+    private double entropy;
+    private double brightness;
+    private double contrast;
+
+    public double getEntropy() {
+        return entropy;
+    }
+    public double getBrightness() {
+        return brightness;
+    }
+    public double getContrast() {
+        return contrast;
+    }
 
     public String getFileName() {
         return fileName;
@@ -186,20 +247,23 @@ class ImageProcessor {
     public BufferedImage getImage () {
         return image;
     }
+    public int getSize() {
+        return image.getWidth() * image.getHeight();
+    }
     public ImageProcessor(String filename) {
-
         try {
             fileName = filename;
             var f = new File(filename);
             mimeType = Files.probeContentType(f.toPath()).split("/")[1];
             image = ImageIO.read(f);
-            System.out.println("constructor called");
             convertToGray();
             init();
         } catch (IOException ex) {
             System.out.println("NOOOOO");
         }
     }
+    
+
     private void convertToGray() {
         /*image = new BufferedImage(
             image.getWidth(),
@@ -230,6 +294,7 @@ class ImageProcessor {
     }
     private void init() {
         fillHistogram();
+        initInfo();
     }
     private void fillHistogram() {
         //DataBuffer raster = image.getRaster().getDataBuffer();
@@ -246,6 +311,37 @@ class ImageProcessor {
                 histogram[pixel]++;
             }
         }
+    }
+    private void initInfo() {
+        // Brightness
+        int sum = 0;
+        for (int i=0; i<histogram.length; ++i) {
+            sum += i*histogram[i];
+        }
+        brightness = (double)sum/getSize();
+
+        // Contrast
+        sum = 0;
+        for (int i=0; i<histogram.length; ++i) {
+            sum += histogram[i] * (i - brightness)*(i - brightness);
+        }
+
+        contrast = (Math.floor(Math.sqrt((1.0/getSize()) * sum)*100))/100;
+
+
+        // Entropy
+        double sumd = 0;
+        for (int i=0; i<histogram.length; ++i) {
+            double f = (double)histogram[i] / getSize();
+            if (f == 0) {
+                continue;
+            }
+            double log2f = Math.log(f) / Math.log(2.0);
+            
+
+            sumd += f * log2f;
+        }
+        entropy = (Math.floor(-sumd*100))/100;
     }
 
 }
