@@ -17,6 +17,7 @@ import java.util.*;
 import java.lang.Math;
 // TO-DO
 // Implement active image listener
+import java.net.InterfaceAddress;
 
 public class MainFrame extends JFrame { 
 
@@ -28,6 +29,19 @@ public class MainFrame extends JFrame {
     private JDesktopPane desktopPane = new JDesktopPane();
     private JLabel mouseLabel;
     private Dimension dim;
+    private MouseMotionListener mouseListener = new MouseMotionListener() {
+        @Override
+        public void mouseMoved(MouseEvent e) { 
+            int x = e.getX();
+            int y = e.getY();
+            int grayLevel = new Color(activePanel.getImage().getRGB(x, y)).getGreen();
+            String mouse = String.format("x:%d y:%d (%d)", x,y,grayLevel);
+            mouseLabel.setText(mouse);
+        }
+        @Override
+        public void mouseDragged (MouseEvent e){
+        }
+    };;
 
     public MainFrame() {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -37,36 +51,11 @@ public class MainFrame extends JFrame {
 
     private void createLayout() {
         setJMenuBar(createMenu());
-
         add(desktopPane);
-
         desktopPane.setVisible(true);
-        desktopPane.addMouseMotionListener(new MouseMotionListener() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                int globalX = e.getX();
-                int globalY = e.getY();
-                if (activePanel == null) {
-                    return;
-                }
 
-                Rectangle rect = activePanel.getBounds();
-                int x = globalX - rect.x;
-                int y = globalY - rect.y;
-                if (x > rect.width || x <= 0 || y > rect.height || y <= 0) {
-                    return;
-                }
-
-                int grayLevel = new Color(activePanel.getImage().getRGB(x, y)).getGreen();
-
-            }
-            @Override
-            public void mouseDragged (MouseEvent e){
-                
-            }
-        });
-        mouseLabel = new JLabel("x: ,y: ");
-        add()
+        mouseLabel = new JLabel("x: y: ");
+        add(mouseLabel, BorderLayout.SOUTH);
         setVisible(true);
     }
 
@@ -88,13 +77,16 @@ public class MainFrame extends JFrame {
         images.add(imgP);
         var img = imgP.getImage();
         var panel = new ImagePanel(img);
-        var internalFrame = new JInternalFrame(imgP.getFileName(),false,true,true,true);
+        var internalFrame = new JInternalFrame(imgP.getFileName(),false,true,false,true);
         internalFrame.addInternalFrameListener(new InternalFrameAdapter(){
             @Override
             public void internalFrameActivated(InternalFrameEvent e) {
+                if (activePanel != null)
+                    activePanel.removeMouseMotionListener(mouseListener);
                 var comp = e.getInternalFrame().getContentPane().getComponent(0);
                 activePanel = (ImagePanel)comp;
                 activeImage = getActiveImage().get();
+                activePanel.addMouseMotionListener(mouseListener);
             }
             public void internalFrameClosed(InternalFrameEvent e) {
                 images.remove(getImageFromFrame(e.getInternalFrame()).get());
@@ -137,9 +129,12 @@ public class MainFrame extends JFrame {
         var mb = new JMenuBar();
         var menuFile = new JMenu("File");
         var menuData = new JMenu("Data");
+        var menuEdit = new JMenu("Edit");
 
         mb.add(menuFile);
         mb.add(menuData);
+        mb.add(menuEdit);
+
 
         // Menu Items
         var miOpen = new JMenuItem("Open");
@@ -149,6 +144,11 @@ public class MainFrame extends JFrame {
         menuData.add(miInfo);
         var miHisto = new JMenuItem("Histogram");
         menuData.add(miHisto);
+        var miCumHisto = new JMenuItem("Cumulative Histo");
+        menuData.add(miCumHisto);
+
+        var miInterval = new JMenuItem("Interval Defined");
+        menuEdit.add(miInterval);
 
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
@@ -182,15 +182,27 @@ public class MainFrame extends JFrame {
                 chartFrame.setVisible(true);
             } 
         });
+
+        miCumHisto.addActionListener(new ActionListener() { 
+            public void actionPerformed(ActionEvent e) { 
+                var chart = new ChartPanel(getActiveImage().get().cumHistogram, new String[]{},"CUMULATIVE HISTOGRAM");
+                var chartFrame = new JFrame();
+                chartFrame.add(chart);
+                chartFrame.setBounds(dim.width/3,dim.height/3, dim.width/3, dim.height/3);
+                chartFrame.setVisible(true);
+            } 
+        });
         
+        miInterval.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                
+            }
+        });
         return mb;
     }
 } 
 
 class ImagePanel extends JPanel{
-
-
-
     private BufferedImage image;
 
     public BufferedImage getImage () {
@@ -218,6 +230,7 @@ class ImageProcessor {
     private String fileName;
     private BufferedImage image;
     private double [] histogram = new double[256];
+    public double [] cumHistogram = new double[256];
     private String mimeType;
     private int minGray = 256, maxGray = 0;
     private double entropy;
@@ -263,14 +276,7 @@ class ImageProcessor {
         }
     }
     
-
     private void convertToGray() {
-        /*image = new BufferedImage(
-            image.getWidth(),
-            image.getHeight(),
-            BufferedImage.TYPE_BYTE_GRAY
-        );*/
-
         for (int i=0; i<image.getWidth(); i++){
             for (int j=0; j<image.getHeight(); j++){
                 var pixel = new Color(image.getRGB(i,j));
@@ -287,20 +293,20 @@ class ImageProcessor {
     public ImageProcessor(BufferedImage img) {
         image = img;
         init();
-        
     }
+
     public double[] getHistogram() {
         return histogram;
     }
+
     private void init() {
         fillHistogram();
         initInfo();
     }
+
     private void fillHistogram() {
-        //DataBuffer raster = image.getRaster().getDataBuffer();
         for (int i=0; i<image.getWidth(); i++){
             for (int j=0; j<image.getHeight(); j++){
-                //int pixel = raster.getElem(i);
                 int pixel = (new Color(image.getRGB(i, j))).getGreen();
                 if (pixel < minGray) {
                     minGray = pixel;
@@ -311,6 +317,10 @@ class ImageProcessor {
                 histogram[pixel]++;
             }
         }
+        cumHistogram[0] = histogram[0];
+        for (int i=1; i<histogram.length; ++i){
+            cumHistogram[i] = histogram[i] + cumHistogram[i-1];
+        }
     }
     private void initInfo() {
         // Brightness
@@ -318,7 +328,7 @@ class ImageProcessor {
         for (int i=0; i<histogram.length; ++i) {
             sum += i*histogram[i];
         }
-        brightness = (double)sum/getSize();
+        brightness = (Math.floor((double)sum/getSize()*100))/100;
 
         // Contrast
         sum = 0;
@@ -345,3 +355,27 @@ class ImageProcessor {
     }
 
 }
+
+class IntervalEditDialog extends JDialog{
+    public IntervalEditDialog (Frame owner){
+        super(owner);
+    }
+
+    public void openDialog (){
+        setPreferredSize(new Dimension(300, 300));
+        setTitle("Interval Editing");
+        pack();
+        setLocationRelativeTo(getParent());
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+    }
+
+    public void doModal() {
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        setModal(true);
+        setVisible(true);
+    }
+};
