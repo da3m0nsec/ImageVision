@@ -195,7 +195,8 @@ public class MainFrame extends JFrame {
         
         miInterval.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                
+                var dialog = new IntervalEditDialog(MainFrame.this);
+                dialog.doModal();
             }
         });
         return mb;
@@ -357,13 +358,29 @@ class ImageProcessor {
 }
 
 class IntervalEditDialog extends JDialog{
+
+    private int intNumber;
+
     public IntervalEditDialog (Frame owner){
         super(owner);
+
     }
 
-    public void openDialog (){
+    public void createDialog (){
         setPreferredSize(new Dimension(300, 300));
         setTitle("Interval Editing");
+        var next = new JButton();
+        var numField = new JTextField(30);
+        add(numField);
+        add (next);
+
+        next.addActionListener(new ActionListener (){
+            public void actionPerformed(ActionEvent e) { 
+                intNumber = Integer.parseInt(numField.getText());
+                System.out.println(intNumber);
+            }
+        });
+
         pack();
         setLocationRelativeTo(getParent());
     }
