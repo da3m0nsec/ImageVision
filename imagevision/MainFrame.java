@@ -196,7 +196,8 @@ public class MainFrame extends JFrame {
         miInterval.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 var dialog = new IntervalEditDialog(MainFrame.this);
-                dialog.doModal();
+                var v = dialog.doModal();
+                System.out.println(Arrays.toString(v));
             }
         });
         return mb;
@@ -360,24 +361,41 @@ class ImageProcessor {
 class IntervalEditDialog extends JDialog{
 
     private int intNumber;
+    private int[] fVector;
+     
 
     public IntervalEditDialog (Frame owner){
         super(owner);
-
+        createDialog();
     }
 
     public void createDialog (){
-        setPreferredSize(new Dimension(300, 300));
+        setPreferredSize(new Dimension(250, 140));
+        setLayout(new BorderLayout());
         setTitle("Interval Editing");
-        var next = new JButton();
-        var numField = new JTextField(30);
-        add(numField);
-        add (next);
+
+        var next = new JButton("Next");
+        var numField = new JTextField(3);
+        var centerPanel = new JPanel(new FlowLayout());
+        centerPanel.add(new JLabel("Introduce number of intervals: "));
+        centerPanel.add(numField);
+
+        var southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        southPanel.add(next);
+
+        add (centerPanel, BorderLayout.CENTER);
+        add (southPanel, BorderLayout.SOUTH);
 
         next.addActionListener(new ActionListener (){
             public void actionPerformed(ActionEvent e) { 
-                intNumber = Integer.parseInt(numField.getText());
-                System.out.println(intNumber);
+                try {
+                    intNumber = Integer.parseInt(numField.getText());
+                    setSize(new Dimension (1000,1000));
+                    nextScreen(centerPanel);
+                }
+                catch (final NumberFormatException ex){
+                    intNumber = 0;
+                }
             }
         });
 
@@ -385,14 +403,46 @@ class IntervalEditDialog extends JDialog{
         setLocationRelativeTo(getParent());
     }
 
+    private void nextScreen (JPanel centerPanel){
+        centerPanel.removeAll();
+        centerPanel.setLayout(new GridLayout(intNumber,3, 5,5));
+       
+        var next = new JButton("Done");
+        var southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        southPanel.add(next);
+        add (southPanel, BorderLayout.SOUTH);
+        
+        var textVector = new JTextField [2 * intNumber];
+        
+        for (int i=0; i<intNumber*2; i+=2){
+            centerPanel.add(new JLabel("Interval " + i + ": "));
+            textVector[i] = new JTextField();
+            textVector[i+1] = new JTextField();
+
+            centerPanel.add(textVector[i]);    
+            centerPanel.add(textVector[i+1]);            
+        }
+        
+        next.addActionListener(new ActionListener (){
+            public void actionPerformed(ActionEvent e) { 
+                for (int i=0; i<intNumber; i+=2){
+                    fVector[i] = Integer.parseInt(textVector[i].getText());
+                    fVector[i+1] = Integer.parseInt(textVector[i+1].getText());
+                } 
+                setVisible(false);
+            }
+        });
+    }
+
     @Override
     public void dispose() {
         super.dispose();
     }
 
-    public void doModal() {
+    public int[] doModal() {
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setModal(true);
         setVisible(true);
+        return fVector;
     }
 };
