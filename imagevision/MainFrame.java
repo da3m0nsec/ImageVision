@@ -3,6 +3,7 @@ package imagevision;
 import javax.swing.*;
 import javax.swing.event.*;
 
+import sun.awt.image.BufferedImageDevice;
 
 import java.nio.file.*;
 import java.awt.*;
@@ -15,9 +16,9 @@ import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import java.util.*;
 import java.lang.Math;
+import java.net.InterfaceAddress;
 // TO-DO
 // Implement active image listener
-import java.net.InterfaceAddress;
 
 public class MainFrame extends JFrame { 
 
@@ -197,7 +198,8 @@ public class MainFrame extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 var dialog = new IntervalEditDialog(MainFrame.this);
                 var v = dialog.doModal();
-                System.out.println(Arrays.toString(v));
+
+                System.out.println(Arrays.deepToString(v));
             }
         });
         return mb;
@@ -249,6 +251,35 @@ class ImageProcessor {
         return contrast;
     }
 
+    public ImageProcessor transform(int[] f, int[] t) {
+        var tabla = new int[256];
+        for (int i=0; i<f.length/2; i++) {
+            int xf = f[i];
+            int yf = f[i+1];
+
+            int xt = t[i];
+            int yt = t[i+1];
+
+            double m = ((double)(xt-xf))/(yt-yf);
+            double b = (double)(yt)/m*xt;
+
+            for (int v=xf; v<xt; ++v) {
+                tabla[v] = (int)(m*v + b);
+            }
+        }
+
+        BufferedImage buf = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
+        for (int i=0; i<image.getWidth(); i++){
+            for (int j=0; j<image.getHeight(); j++) {
+                int newVal = tabla[getPixel(i, j)];
+                buf.setRGB(i,j,new Color(newVal, newVal, newVal).getRGB());
+            }
+        }
+        return new ImageProcessor(image, fileName);
+    }
+    public int getPixel(int i, int j) {
+        return new Color(image.getRGB(i,j)).getGreen();
+    }
     public String getFileName() {
         return fileName;
     }
@@ -292,8 +323,9 @@ class ImageProcessor {
         }
     }
 
-    public ImageProcessor(BufferedImage img) {
+    public ImageProcessor(BufferedImage img, String name) {
         image = img;
+        fileName = name;
         init();
     }
 
@@ -340,7 +372,6 @@ class ImageProcessor {
 
         contrast = (Math.floor(Math.sqrt((1.0/getSize()) * sum)*100))/100;
 
-
         // Entropy
         double sumd = 0;
         for (int i=0; i<histogram.length; ++i) {
@@ -362,7 +393,7 @@ class IntervalEditDialog extends JDialog{
 
     private int intNumber;
     private int[] fVector;
-     
+    private int[] tVector;
 
     public IntervalEditDialog (Frame owner){
         super(owner);
@@ -391,7 +422,8 @@ class IntervalEditDialog extends JDialog{
                 try {
                     intNumber = Integer.parseInt(numField.getText());
                     setSize(new Dimension (1000,1000));
-                    nextScreen(centerPanel);
+                    next.removeActionListener(this);
+                    nextScreen(centerPanel, next);
                 }
                 catch (final NumberFormatException ex){
                     intNumber = 0;
@@ -403,35 +435,45 @@ class IntervalEditDialog extends JDialog{
         setLocationRelativeTo(getParent());
     }
 
-    private void nextScreen (JPanel centerPanel){
-        centerPanel.removeAll();
-        centerPanel.setLayout(new GridLayout(intNumber,3, 5,5));
-       
-        var next = new JButton("Done");
-        var southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        southPanel.add(next);
-        add (southPanel, BorderLayout.SOUTH);
-        
-        var textVector = new JTextField [2 * intNumber];
-        
-        for (int i=0; i<intNumber*2; i+=2){
-            centerPanel.add(new JLabel("Interval " + i + ": "));
-            textVector[i] = new JTextField();
-            textVector[i+1] = new JTextField();
+    private void nextScreen (JPanel centerPanel, JButton next){
+        remove(centerPanel);
+        centerPanel = new JPanel(new FlowLayout());
+        add (centerPanel, BorderLayout.CENTER);
 
-            centerPanel.add(textVector[i]);    
-            centerPanel.add(textVector[i+1]);            
+        setSize(new Dimension(300, 80+35*intNumber));
+        setVisible(true);
+        var textVector = new JTextField [4 * intNumber];
+        //setResizable(false);
+        for (int i=0; i<intNumber; i++){
+            centerPanel.add(new JLabel("Interval " + i + ": "));
+            for (int j=0; j<4; ++j) {
+                textVector[i+j] = new JTextField(3);
+                centerPanel.add(textVector[i+j]);
+            }           
         }
         
+        fVector = new int [2 * intNumber];
+        tVector = new int [2 * intNumber];
+        next.setText("Done");
         next.addActionListener(new ActionListener (){
             public void actionPerformed(ActionEvent e) { 
-                for (int i=0; i<intNumber; i+=2){
-                    fVector[i] = Integer.parseInt(textVector[i].getText());
-                    fVector[i+1] = Integer.parseInt(textVector[i+1].getText());
-                } 
+                for (int i=0; i<intNumber; i++){
+                    for (int j=0; j<2; j++) {
+                        try {
+                            fVector[i+j] = Integer.parseInt(textVector[i+j].getText());
+                            tVector[i+j] = Integer.parseInt(textVector[i+j+2].getText());
+                        }
+                        catch (final NumberFormatException ex){
+                            return;
+                        }
+
+                    } 
+                }
+                    
                 setVisible(false);
             }
         });
+        
     }
 
     @Override
@@ -439,10 +481,10 @@ class IntervalEditDialog extends JDialog{
         super.dispose();
     }
 
-    public int[] doModal() {
+    public int[][] doModal() {
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setModal(true);
         setVisible(true);
-        return fVector;
+        return new int[][] {fVector, tVector};
     }
 };
