@@ -1,4 +1,3 @@
-
 package imagevision;
 
 import javax.swing.*;
@@ -11,8 +10,9 @@ import java.awt.event.*;
 class IntervalEditDialog extends JDialog{
 
     private int intNumber;
-    private int[] fVector;
-    private int[] tVector;
+    public int[] fVector;
+    public int[] tVector;
+    boolean finished = false;
 
     public IntervalEditDialog (Frame owner){
         super(owner);
@@ -61,14 +61,23 @@ class IntervalEditDialog extends JDialog{
 
         setSize(new Dimension(300, 80+35*intNumber));
         setVisible(true);
-        var textVector = new JTextField [4 * intNumber];
+        var fTextVector = new JTextField [2 * intNumber];
+        var tTextVector = new JTextField [2 * intNumber];
+
         //setResizable(false);
-        for (int i=0; i<intNumber; i++){
+        int pos =0;
+        for (int i=0; i<intNumber; i++, pos+=2){
             centerPanel.add(new JLabel("Interval " + i + ": "));
-            for (int j=0; j<4; ++j) {
-                textVector[i+j] = new JTextField(3);
-                centerPanel.add(textVector[i+j]);
-            }           
+
+            fTextVector[pos] = new JTextField(3);
+            centerPanel.add(fTextVector[pos]);
+            fTextVector[pos+1] = new JTextField(3);
+            centerPanel.add(fTextVector[pos+1]);
+
+            tTextVector[pos] = new JTextField(3);
+            centerPanel.add(tTextVector[pos]);
+            tTextVector[pos+1] = new JTextField(3);
+            centerPanel.add(tTextVector[pos+1]);
         }
         
         fVector = new int [2 * intNumber];
@@ -76,11 +85,14 @@ class IntervalEditDialog extends JDialog{
         next.setText("Done");
         next.addActionListener(new ActionListener (){
             public void actionPerformed(ActionEvent e) { 
-                for (int i=0; i<intNumber; i++){
-                    for (int j=0; j<2; j++) {
+                for (int i=0, pos=0; i<intNumber; i++){
+                    for (int j=0; j<2; j++, pos++) {
                         try {
-                            fVector[i+j] = Integer.parseInt(textVector[i+j].getText());
-                            tVector[i+j] = Integer.parseInt(textVector[i+j+2].getText());
+                            
+                            int valf = Integer.parseInt(fTextVector[pos].getText());
+                            int valt = Integer.parseInt(tTextVector[pos].getText());
+                            fVector[pos] = valf;
+                            tVector[pos] = valt;
                         }
                         catch (final NumberFormatException ex){
                             return;
@@ -88,7 +100,7 @@ class IntervalEditDialog extends JDialog{
 
                     } 
                 }
-                    
+                finished = true;    
                 setVisible(false);
             }
         });
@@ -100,10 +112,11 @@ class IntervalEditDialog extends JDialog{
         super.dispose();
     }
 
-    public int[][] doModal() {
+    public boolean doModal() {
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setModal(true);
         setVisible(true);
-        return new int[][] {fVector, tVector};
+        return finished;
+        //return new int[][] {fVector, tVector};
     }
 };

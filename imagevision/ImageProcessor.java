@@ -8,6 +8,8 @@ import java.util.*;
 import javax.imageio.ImageIO;
 import java.io.File;
 
+import java.lang.Math;
+
 
 class ImageProcessor {
     private String fileName;
@@ -30,43 +32,56 @@ class ImageProcessor {
         return contrast;
     }
 
-    public ImageProcessor transform(int[] f, int[] t) {
-        var tabla = new int[256];
+    public static int clamp(double val, int min, int max) {
+        return Math.max(min, Math.min(max, (int)val));
+    }
+    public ImageProcessor transformFromBC(double b, double c) {
+        var table = new int[256];
+        double A = c/contrast;
+        double B = b - A*brightness;
+        for (int i=0; i<table.length; i++) {
+            table[i] = clamp(Math.round(A*i + B), 0, 255);
+        }
+        return applyTable(table);
+    }
+    public ImageProcessor transformFromIntervals(int[] f, int[] t) {
+        var table = new int[256];
+        for (int i=0; i<256; i++) {
+            table[i] = i;
+        }
         for (int i=0; i<f.length/2; i++) {
-            int xf = f[i];
-            int yf = f[i+1];
+            int xf = f[i*2];
+            int yf = f[i*2+1];
 
-            int xt = t[i];
-            int yt = t[i+1];
+            int xt = t[i*2];
+            int yt = t[i*2+1];
 
-            double m = ((double)(xt-xf))/(yt-yf);
-            double b = (double)(yt)/m*xt;
+            double m = ((double)(yt-yf))/(xt-xf);
+            double b = (double)(yt)-(m*xt);
 
-            for (int v=xf; v<xt; ++v) {
-                int newValue = (int)(m*v + b);
-                /*
-                if (newValue>255)
-                    newValue = 255;
-                else if (newValue < 0) 
-                    newValue = 0;*/
-                tabla[v] = newValue;
+            for (int v=xf; v<=xt; ++v) {
+                table[v] = clamp(Math.round(m*v + b), 0, 255);
             }
         }
-        System.out.println(Arrays.toString(tabla));
+        return applyTable(table);
+    }
+
+    public ImageProcessor equalize () {
+
+        var table = new int[256];
+        for (int i=0; i<256; i++) {
+            table[i] = clamp(cumHistogram[i]/getSize()*(255), 0, 255);
+        }
+        return applyTable(table);
+    }
+
+    public ImageProcessor applyTable(int[] table) {
         BufferedImage buf = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
         for (int i=0; i<image.getWidth(); i++){
             for (int j=0; j<image.getHeight(); j++) {
-                int newVal = tabla[getPixel(i, j)];
+                int newVal = table[getPixel(i, j)];
                 buf.setRGB(i,j,new Color(newVal, newVal, newVal).getRGB());
             }
-        }
-        var ofile = new File("lenamod.png");
-        try {
-            ImageIO.write(buf, "png", ofile);
-            System.out.println("Written" + ofile.getAbsolutePath());
-        }
-        catch(IOException ex) {
-            System.out.println("NOOOOO");
         }
         return new ImageProcessor(buf, fileName);
     }
@@ -101,7 +116,11 @@ class ImageProcessor {
             System.out.println("NOOOOO");
         }
     }
-    
+    public ImageProcessor(BufferedImage img, String name) {
+        image = img;
+        fileName = name;
+        init();
+    }
     private void convertToGray() {
         for (int i=0; i<image.getWidth(); i++){
             for (int j=0; j<image.getHeight(); j++){
@@ -114,12 +133,6 @@ class ImageProcessor {
                 image.setRGB(i,j, (new Color(gray, gray, gray)).getRGB());
             }
         }
-    }
-
-    public ImageProcessor(BufferedImage img, String name) {
-        image = img;
-        fileName = name;
-        init();
     }
 
     public double[] getHistogram() {

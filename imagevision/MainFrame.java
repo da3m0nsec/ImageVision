@@ -139,6 +139,10 @@ public class MainFrame extends JFrame {
 
         var miInterval = new JMenuItem("Interval Defined");
         menuEdit.add(miInterval);
+        var miAdjust = new JMenuItem("Brightness and Contrast");
+        menuEdit.add(miAdjust);
+        var miEqualize = new JMenuItem("Equalize");
+        menuEdit.add(miEqualize);
 
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
@@ -186,9 +190,25 @@ public class MainFrame extends JFrame {
         miInterval.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 var dialog = new IntervalEditDialog(MainFrame.this);
-                var v = dialog.doModal();
-                ImageProcessor newImg = activeImage.transform(v[0], v[1]);
-                addImage(newImg);
+                if (dialog.doModal()) {
+                    ImageProcessor newImg = activeImage.transformFromIntervals(dialog.fVector, dialog.tVector);
+                    addImage(newImg);
+                }
+            }
+        });
+
+        miAdjust.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                var dialog = new AdjustDialog(MainFrame.this);
+                if (dialog.doModal()) {
+                    ImageProcessor newImg = activeImage.transformFromBC(dialog.brightness, dialog.contrast);
+                    addImage(newImg);
+                }
+            }
+        });
+        miEqualize.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addImage(activeImage.equalize());
             }
         });
         return mb;
