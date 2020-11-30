@@ -187,8 +187,8 @@ public class MainFrame extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 var dialog = new IntervalEditDialog(MainFrame.this);
                 var v = dialog.doModal();
-
-                System.out.println(Arrays.deepToString(v));
+                ImageProcessor newImg = activeImage.transform(v[0], v[1]);
+                addImage(newImg);
             }
         });
         return mb;

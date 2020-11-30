@@ -1,11 +1,10 @@
 package imagevision;
 
-import javax.swing.JPanel;
 import java.awt.*;
 import java.awt.image.*;
 import java.io.IOException;
 import java.nio.file.Files;
-
+import java.util.*;
 import javax.imageio.ImageIO;
 import java.io.File;
 
@@ -44,16 +43,30 @@ class ImageProcessor {
             double b = (double)(yt)/m*xt;
 
             for (int v=xf; v<xt; ++v) {
-                tabla[v] = (int)(m*v + b);
+                int newValue = (int)(m*v + b);
+                /*
+                if (newValue>255)
+                    newValue = 255;
+                else if (newValue < 0) 
+                    newValue = 0;*/
+                tabla[v] = newValue;
             }
         }
-
+        System.out.println(Arrays.toString(tabla));
         BufferedImage buf = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
         for (int i=0; i<image.getWidth(); i++){
             for (int j=0; j<image.getHeight(); j++) {
                 int newVal = tabla[getPixel(i, j)];
                 buf.setRGB(i,j,new Color(newVal, newVal, newVal).getRGB());
             }
+        }
+        var ofile = new File("lenamod.png");
+        try {
+            ImageIO.write(buf, "png", ofile);
+            System.out.println("Written" + ofile.getAbsolutePath());
+        }
+        catch(IOException ex) {
+            System.out.println("NOOOOO");
         }
         return new ImageProcessor(buf, fileName);
     }
