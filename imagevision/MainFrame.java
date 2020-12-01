@@ -42,6 +42,7 @@ public class MainFrame extends JFrame {
 
     private void createLayout() {
         setJMenuBar(createMenu());
+        activateImgMenus(false);
         add(desktopPane);
         desktopPane.setVisible(true);
 
@@ -49,7 +50,7 @@ public class MainFrame extends JFrame {
         add(mouseLabel, BorderLayout.SOUTH);
         setVisible(true);
     }
-
+     
     public static String chooseFile() {
         JFileChooser fc = new JFileChooser();
         int ret = fc.showOpenDialog(null);
@@ -63,7 +64,14 @@ public class MainFrame extends JFrame {
             return null;
         }
     }
+    private void activateImgMenus(boolean activated) {
+        var menu = getJMenuBar();
+        var dataM = (JMenuItem)menu.getComponent(1);
+        var editM = (JMenuItem)menu.getComponent(2);
 
+        dataM.setEnabled(activated);
+        editM.setEnabled(activated);
+    }
     private void addImage(ImageProcessor imgP) {
         images.add(imgP);
         var img = imgP.getImage();
@@ -81,14 +89,17 @@ public class MainFrame extends JFrame {
             }
             public void internalFrameClosed(InternalFrameEvent e) {
                 images.remove(getImageFromFrame(e.getInternalFrame()).get());
+                if (images.isEmpty()) {
+                    activateImgMenus(false);
+                }
             }
         });
         internalFrame.add(panel);
         desktopPane.add(internalFrame);
-        //var imgPanel = (ImagePanel) internalFrame.getContentPane().getComponent(0);
         
         internalFrame.pack();
         internalFrame.setVisible(true);
+        activateImgMenus(true);
     }
 
     private Optional<ImageProcessor> getImageFromFrame (JInternalFrame j) {
@@ -144,11 +155,13 @@ public class MainFrame extends JFrame {
         menuEdit.add(miAdjust);
         var miEqualize = new JMenuItem("Equalize");
         menuEdit.add(miEqualize);
-
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String filename = chooseFile();
+                if (filename == null) {
+                    return;
+                }
                 try {
                     var imgP = new ImageProcessor(filename);
                     addImage(imgP);

@@ -104,7 +104,7 @@ class ImageProcessor {
     public int getSize() {
         return image.getWidth() * image.getHeight();
     }
-    public ImageProcessor(String filename) {
+    public ImageProcessor(String filename) throws IOException {
         fileName = filename;
         var f = new File(filename);
         mimeType = Files.probeContentType(f.toPath()).split("/")[1];
