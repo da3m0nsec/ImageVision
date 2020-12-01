@@ -2,6 +2,7 @@ package imagevision;
 
 import javax.swing.*;
 import javax.swing.event.*;
+import javax.imageio.*;
 import java.io.IOException;
 
 import java.awt.*;
@@ -51,13 +52,27 @@ public class MainFrame extends JFrame {
         setVisible(true);
     }
      
-    public static String chooseFile() {
+    public static String chooseFile(boolean read) {
         JFileChooser fc = new JFileChooser();
-        int ret = fc.showOpenDialog(null);
+        int ret;
+        fc.addChoosableFileFilter(new Filters.png());
 
+        if (read) {
+            ret = fc.showOpenDialog(null);
+        }
+        else {
+            fc.setAcceptAllFileFilterUsed(false);
+            ret = fc.showSaveDialog(null);
+        }
+        
         if (ret == JFileChooser.APPROVE_OPTION) {
             File file = fc.getSelectedFile();
             String filename = file.getAbsolutePath();
+            if (!read) {
+                if (!filename.endsWith(fc.getFileFilter().getDescription())){
+                    filename+= fc.getFileFilter().getDescription();
+                }
+            }
             return filename;
         }
         else {
@@ -66,11 +81,13 @@ public class MainFrame extends JFrame {
     }
     private void activateImgMenus(boolean activated) {
         var menu = getJMenuBar();
-        var dataM = (JMenuItem)menu.getComponent(1);
-        var editM = (JMenuItem)menu.getComponent(2);
-
+        var fileM = (JMenu)menu.getComponent(0);
+        var dataM = (JMenu)menu.getComponent(1);
+        var editM = (JMenu)menu.getComponent(2);
+        var saveMI = (JMenuItem)fileM.getItem(1);
         dataM.setEnabled(activated);
         editM.setEnabled(activated);
+        saveMI.setEnabled(activated);
     }
     private void addImage(ImageProcessor imgP) {
         images.add(imgP);
@@ -92,6 +109,15 @@ public class MainFrame extends JFrame {
                 if (images.isEmpty()) {
                     activateImgMenus(false);
                 }
+            }
+        });
+
+        internalFrame.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                Component cmp = event.getComponent();
+                Rectangle rect = cmp.getBounds();
+                cmp.setBounds(rect.x, rect.y, rect.width, Math.round(rect.width/panel.ratio));
             }
         });
         internalFrame.add(panel);
@@ -141,6 +167,8 @@ public class MainFrame extends JFrame {
         // Menu Items
         var miOpen = new JMenuItem("Open");
         menuFile.add(miOpen);
+        var miSave = new JMenuItem("Save");
+        menuFile.add(miSave);
 
         var miInfo = new JMenuItem("Info");
         menuData.add(miInfo);
@@ -155,13 +183,15 @@ public class MainFrame extends JFrame {
         menuEdit.add(miAdjust);
         var miEqualize = new JMenuItem("Equalize");
         menuEdit.add(miEqualize);
-
         var miHistoMatch = new JMenuItem("Histogram Matching");
         menuEdit.add(miHistoMatch);
+        var miGammaCorrection = new JMenuItem("Gamma Correction");
+        menuEdit.add(miGammaCorrection);
+
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String filename = chooseFile();
+                String filename = chooseFile(true);
                 if (filename == null) {
                     return;
                 }
@@ -171,13 +201,26 @@ public class MainFrame extends JFrame {
                 } catch(IOException ex) {}
             }
         });
+        miSave.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    String filename = chooseFile(false);
+                    if (filename == null){
+                        return;
+                    }
+
+                    var outputfile = new File(filename);
+                    int i = filename.lastIndexOf('.');
+                    String extension = filename.substring(i+1);
+                    ImageIO.write( activeImage.getImage(), extension,  outputfile);
+                }
+                catch (final IOException ex) {} 
+            }
+        });
 
         miInfo.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e){
                 var imgP = activeImage;
-                if (imgP == null) {
-                    return;
-                }
                 var range = imgP.getRange();
                 JOptionPane.showMessageDialog(null,
                     "Size: " + imgP.getImage().getWidth() + "x" + imgP.getImage().getHeight() +
@@ -236,7 +279,23 @@ public class MainFrame extends JFrame {
 
         miHistoMatch.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                //addImage();
+                String filename = chooseFile(true);
+                if (filename == null) {
+                    return;
+                }
+                try {
+                    var imgP = new ImageProcessor(filename);
+                    addImage(activeImage.histogramMatching(imgP.getNormCumHistogram()));
+                } catch(IOException ex) {}
+            }
+        });
+        miGammaCorrection.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String gamma = JOptionPane.showInputDialog( MainFrame.this, "Input gamma", JOptionPane.QUESTION_MESSAGE);
+                try {
+                    addImage(activeImage.gammaCorrection(Double.parseDouble(gamma)));
+                }
+                catch (final NumberFormatException ex) {}
             }
         });
         return mb;

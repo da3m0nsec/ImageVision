@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.util.*;
 import javax.imageio.ImageIO;
 import java.io.File;
+import java.lang.*;
 
 import java.lang.Math;
 
@@ -36,21 +37,23 @@ class ImageProcessor {
         return Math.max(min, Math.min(max, (int)Math.round(val)));
     }
 
-    public ImageProcessor histogramMatching(double ch[]) {
+    public ImageProcessor histogramMatching(double nch[]) {
         var table = new int[256];
 
         for(int i=0; i<table.length; i++) {
-            double prevVal = cumHistogram[i];
-            table[i] = clamp(Arrays.binarySearch(cumHistogram, prevVal), 0, 255);
+            double val = cumHistogram[i]/getSize(); 
+            table[i] = Math.abs(Arrays.binarySearch(nch, val)); 
         }
+        return applyTable(table);
     }
 
     public ImageProcessor gammaCorrection(double gamma) {
         var table = new int[256];
 
         for(int i=0; i<table.length; i++) {
-            table[i] = clamp(Math.pow((double)i/255, gamma)/255, 0, 255);
+            table[i] = (int)Math.round(Math.pow((double)i/255, gamma)*255);
         }
+        return applyTable(table);
     }
 
     public ImageProcessor transformFromBC(double b, double c) {
@@ -115,26 +118,48 @@ class ImageProcessor {
     public String getMimeType() {
         return mimeType;
     }
-
+    
     public BufferedImage getImage () {
         return image;
     }
     public int getSize() {
         return image.getWidth() * image.getHeight();
     }
+
+    public double[] getHistogram() {
+        return histogram;
+    }
+
+    public double[] getNormCumHistogram() {
+        var normHisto = new double [256];
+        for (int i=0; i<normHisto.length; i++){
+            normHisto[i] = cumHistogram[i]/getSize();
+        }
+        return normHisto;
+    }
+
     public ImageProcessor(String filename) throws IOException {
         fileName = filename;
         var f = new File(filename);
-        mimeType = Files.probeContentType(f.toPath()).split("/")[1];
+        mimeType = Files.probeContentType(f.toPath());
+        if (mimeType != null){
+            mimeType = mimeType.split("/")[1];
+        }
+        else {
+            throw new IOException();
+        }
+        
         image = ImageIO.read(f);
         convertToGray();
         init();
     }
+
     public ImageProcessor(BufferedImage img, String name) {
         image = img;
         fileName = name;
         init();
     }
+
     private void convertToGray() {
         for (int i=0; i<image.getWidth(); i++){
             for (int j=0; j<image.getHeight(); j++){
@@ -147,10 +172,6 @@ class ImageProcessor {
                 image.setRGB(i,j, (new Color(gray, gray, gray)).getRGB());
             }
         }
-    }
-
-    public double[] getHistogram() {
-        return histogram;
     }
 
     private void init() {
