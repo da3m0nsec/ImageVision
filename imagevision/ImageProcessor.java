@@ -33,8 +33,26 @@ class ImageProcessor {
     }
 
     public static int clamp(double val, int min, int max) {
-        return Math.max(min, Math.min(max, (int)val));
+        return Math.max(min, Math.min(max, (int)Math.round(val)));
     }
+
+    public ImageProcessor histogramMatching(double ch[]) {
+        var table = new int[256];
+
+        for(int i=0; i<table.length; i++) {
+            double prevVal = cumHistogram[i];
+            table[i] = clamp(Arrays.binarySearch(cumHistogram, prevVal), 0, 255);
+        }
+    }
+
+    public ImageProcessor gammaCorrection(double gamma) {
+        var table = new int[256];
+
+        for(int i=0; i<table.length; i++) {
+            table[i] = clamp(Math.pow((double)i/255, gamma)/255, 0, 255);
+        }
+    }
+
     public ImageProcessor transformFromBC(double b, double c) {
         var table = new int[256];
         double A = c/contrast;

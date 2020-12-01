@@ -155,6 +155,9 @@ public class MainFrame extends JFrame {
         menuEdit.add(miAdjust);
         var miEqualize = new JMenuItem("Equalize");
         menuEdit.add(miEqualize);
+
+        var miHistoMatch = new JMenuItem("Histogram Matching");
+        menuEdit.add(miHistoMatch);
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -228,6 +231,12 @@ public class MainFrame extends JFrame {
         miEqualize.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 addImage(activeImage.equalize());
+            }
+        });
+
+        miHistoMatch.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                //addImage();
             }
         });
         return mb;
