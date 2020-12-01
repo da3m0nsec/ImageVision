@@ -76,7 +76,7 @@ public class MainFrame extends JFrame {
         images.add(imgP);
         var img = imgP.getImage();
         var panel = new ImagePanel(img);
-        var internalFrame = new JInternalFrame(imgP.getFileName(),false,true,false,true);
+        var internalFrame = new JInternalFrame(imgP.getFileName(),true,true,false,true);
         internalFrame.addInternalFrameListener(new InternalFrameAdapter(){
             @Override
             public void internalFrameActivated(InternalFrameEvent e) {
