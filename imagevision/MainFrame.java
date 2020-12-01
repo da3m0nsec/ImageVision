@@ -2,6 +2,7 @@ package imagevision;
 
 import javax.swing.*;
 import javax.swing.event.*;
+import java.io.IOException;
 
 import java.awt.*;
 import java.awt.image.*;
@@ -148,14 +149,19 @@ public class MainFrame extends JFrame {
         miOpen.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String filename = chooseFile();
-                var imgP = new ImageProcessor(filename);
-                addImage(imgP);
+                try {
+                    var imgP = new ImageProcessor(filename);
+                    addImage(imgP);
+                } catch(IOException ex) {}
             }
         });
 
         miInfo.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e){
                 var imgP = activeImage;
+                if (imgP == null) {
+                    return;
+                }
                 var range = imgP.getRange();
                 JOptionPane.showMessageDialog(null,
                     "Size: " + imgP.getImage().getWidth() + "x" + imgP.getImage().getHeight() +

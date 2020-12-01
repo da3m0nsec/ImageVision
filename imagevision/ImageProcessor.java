@@ -105,16 +105,12 @@ class ImageProcessor {
         return image.getWidth() * image.getHeight();
     }
     public ImageProcessor(String filename) {
-        try {
-            fileName = filename;
-            var f = new File(filename);
-            mimeType = Files.probeContentType(f.toPath()).split("/")[1];
-            image = ImageIO.read(f);
-            convertToGray();
-            init();
-        } catch (IOException ex) {
-            System.out.println("NOOOOO");
-        }
+        fileName = filename;
+        var f = new File(filename);
+        mimeType = Files.probeContentType(f.toPath()).split("/")[1];
+        image = ImageIO.read(f);
+        convertToGray();
+        init();
     }
     public ImageProcessor(BufferedImage img, String name) {
         image = img;
