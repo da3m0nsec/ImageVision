@@ -146,10 +146,13 @@ class ImageProcessor {
             mimeType = mimeType.split("/")[1];
         }
         else {
-            throw new IOException();
+            throw new IOException("Unsoported format");
         }
         
         image = ImageIO.read(f);
+        if (image == null) {
+            throw new IOException("Unsoported format");
+        }
         convertToGray();
         init();
     }

@@ -1,6 +1,6 @@
 package imagevision;
 
-import javax.swing.JInternalFrame;
+
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import java.awt.*;

@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.event.*;
 import javax.imageio.*;
 import java.io.IOException;
+import java.awt.image.*;
 
 import java.awt.*;
 import java.awt.image.*;
@@ -21,11 +22,48 @@ public class MainFrame extends JFrame {
     private JDesktopPane desktopPane = new JDesktopPane();
     private JLabel mouseLabel;
     private Dimension dim;
-    private MouseMotionListener mouseListener = new MouseMotionListener() {
+
+    private int map(int istart, int iend, int ostart, int oend, int val) {
+        double slope = (double)(oend - ostart)/(iend - istart);
+        return ostart + (int)Math.round(slope * (val - istart));
+
+    }
+    int xB = 0, yB = 0;
+    private /*MouseMotionListener*/ MouseInputAdapter mouseListener = new MouseInputAdapter(){
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            int x = e.getX();
+            int y = e.getY();
+            x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
+            y = map(0, activePanel.getHeight(), 0, activeImage.getImage().getHeight(), y);
+            
+            System.out.println("xFinal: " + x + " Inicial: " +xB);
+            System.out.println("yFinal: " + y + " Inicial: " +yB);
+            var oldImg = activeImage.getImage();
+            var newImg = new BufferedImage(x-xB, y-yB, oldImg.getType());
+            //int iN = 0, jN = 0; 
+            for (int i = 0; i < newImg.getWidth(); i++) {
+                for (int j = 0; j < newImg.getHeight(); j++) {
+                    newImg.setRGB(i, j, oldImg.getRGB(i+xB, j+xB));
+                }
+            }
+            addImage(new ImageProcessor(newImg, "Cropped"));
+        }
+        @Override
+        public void mousePressed(MouseEvent e) {
+            int x = e.getX();
+            int y = e.getY();
+            x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
+            y = map(0, activePanel.getHeight(), 0, activeImage.getImage().getHeight(), y);
+            xB = x;
+            yB = y;
+        }
         @Override
         public void mouseMoved(MouseEvent e) { 
             int x = e.getX();
             int y = e.getY();
+            x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
+            y = map(0, activePanel.getHeight(), 0, activeImage.getImage().getHeight(), y);
             int grayLevel = new Color(activePanel.getImage().getRGB(x, y)).getGreen();
             String mouse = String.format("x:%d y:%d (%d)", x,y,grayLevel);
             mouseLabel.setText(mouse);
@@ -70,7 +108,7 @@ public class MainFrame extends JFrame {
             String filename = file.getAbsolutePath();
             if (!read) {
                 if (!filename.endsWith(fc.getFileFilter().getDescription())){
-                    filename+= fc.getFileFilter().getDescription();
+                    filename += fc.getFileFilter().getDescription();
                 }
             }
             return filename;
@@ -97,12 +135,16 @@ public class MainFrame extends JFrame {
         internalFrame.addInternalFrameListener(new InternalFrameAdapter(){
             @Override
             public void internalFrameActivated(InternalFrameEvent e) {
-                if (activePanel != null)
+                if (activePanel != null) {
                     activePanel.removeMouseMotionListener(mouseListener);
+                    activePanel.removeMouseListener(mouseListener);
+
+                }
                 var comp = e.getInternalFrame().getContentPane().getComponent(0);
                 activePanel = (ImagePanel)comp;
                 activeImage = getActiveImage().get();
                 activePanel.addMouseMotionListener(mouseListener);
+                activePanel.addMouseListener(mouseListener);
             }
             public void internalFrameClosed(InternalFrameEvent e) {
                 images.remove(getImageFromFrame(e.getInternalFrame()).get());
@@ -169,6 +211,8 @@ public class MainFrame extends JFrame {
         menuFile.add(miOpen);
         var miSave = new JMenuItem("Save");
         menuFile.add(miSave);
+        var miSel = new JMenuItem("Select");
+        menuFile.add(miSel);
 
         var miInfo = new JMenuItem("Info");
         menuData.add(miInfo);
@@ -215,6 +259,12 @@ public class MainFrame extends JFrame {
                     ImageIO.write( activeImage.getImage(), extension,  outputfile);
                 }
                 catch (final IOException ex) {} 
+            }
+        });
+        miSel.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                //cropping = true;
+                
             }
         });
 
