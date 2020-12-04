@@ -22,7 +22,7 @@ public class MainFrame extends JFrame {
     private JDesktopPane desktopPane = new JDesktopPane();
     private JLabel mouseLabel;
     private Dimension dim;
-
+    private boolean cropping = false;
     private int map(int istart, int iend, int ostart, int oend, int val) {
         double slope = (double)(oend - ostart)/(iend - istart);
         return ostart + (int)Math.round(slope * (val - istart));
@@ -32,6 +32,9 @@ public class MainFrame extends JFrame {
     private /*MouseMotionListener*/ MouseInputAdapter mouseListener = new MouseInputAdapter(){
         @Override
         public void mouseReleased(MouseEvent e) {
+            if (!cropping) {
+                return;
+            }
             int x = e.getX();
             int y = e.getY();
             x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
@@ -48,9 +51,13 @@ public class MainFrame extends JFrame {
                 }
             }
             addImage(new ImageProcessor(newImg, "Cropped"));
+            cropping = false;
         }
         @Override
         public void mousePressed(MouseEvent e) {
+            if (!cropping) {
+                return;
+            }
             int x = e.getX();
             int y = e.getY();
             x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
@@ -263,8 +270,7 @@ public class MainFrame extends JFrame {
         });
         miSel.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                //cropping = true;
-                
+                cropping = true;
             }
         });
 
