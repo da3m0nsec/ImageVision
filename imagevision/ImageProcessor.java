@@ -37,6 +37,34 @@ class ImageProcessor {
         return Math.max(min, Math.min(max, (int)Math.round(val)));
     }
 
+    public ImageProcessor difference(ImageProcessor img) {
+        BufferedImage buf = new BufferedImage(img.getWidth(), img.getHeight(), img.getImage().getType());
+        for (int i = 0; i< img.getWidth(); i++){
+            for (int j = 0; j< img.getHeight(); j++){
+                var pixel = Math.abs(getPixel(i, j)- img.getPixel(i,j));
+                buf.setRGB(i, j, new Color(pixel,pixel,pixel).getRGB());
+            }
+        }
+        var dif = new ImageProcessor(buf, "Difference");
+
+        return dif;
+    }
+    public BufferedImage changesMap(ImageProcessor img, int threshold) {
+        BufferedImage buf = new BufferedImage(img.getWidth(), img.getHeight(), img.getImage().getType());
+        var dif = difference(img);
+        for (int i = 0; i< img.getWidth(); i++){
+            for (int j = 0; j< img.getHeight(); j++){
+                var pixeldif = dif.getPixel(i, j);
+                var pixel = getPixel(i, j);
+                var color = new Color(pixeldif>threshold?255:pixel,pixel,pixel).getRGB();
+                buf.setRGB(i, j, color);
+            }
+        }
+
+        return buf;
+        
+    }
+
     public ImageProcessor histogramMatching(double nch[]) {
         var table = new int[256];
 
@@ -121,6 +149,13 @@ class ImageProcessor {
     
     public BufferedImage getImage () {
         return image;
+    }
+
+    public int getWidth() {
+       return image.getWidth(); 
+    }
+    public int getHeight() {
+        return image.getHeight(); 
     }
     public int getSize() {
         return image.getWidth() * image.getHeight();

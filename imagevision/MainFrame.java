@@ -23,13 +23,16 @@ public class MainFrame extends JFrame {
     private JLabel mouseLabel;
     private Dimension dim;
     private boolean cropping = false;
+    
     private int map(int istart, int iend, int ostart, int oend, int val) {
+        val = ImageProcessor.clamp(val, istart, iend);
         double slope = (double)(oend - ostart)/(iend - istart);
         return ostart + (int)Math.round(slope * (val - istart));
-
+        
     }
-    int xB = 0, yB = 0;
-    private /*MouseMotionListener*/ MouseInputAdapter mouseListener = new MouseInputAdapter(){
+    
+    private MouseInputAdapter mouseListener = new MouseInputAdapter(){
+        int xB = 0, yB = 0;
         @Override
         public void mouseReleased(MouseEvent e) {
             if (!cropping) {
@@ -43,11 +46,14 @@ public class MainFrame extends JFrame {
             System.out.println("xFinal: " + x + " Inicial: " +xB);
             System.out.println("yFinal: " + y + " Inicial: " +yB);
             var oldImg = activeImage.getImage();
-            var newImg = new BufferedImage(x-xB, y-yB, oldImg.getType());
+            var newImg = new BufferedImage(Math.abs(x-xB), Math.abs(y-yB), oldImg.getType());
             //int iN = 0, jN = 0; 
+            xB = Math.min(x, xB);
+            yB = Math.min(y, yB);
+
             for (int i = 0; i < newImg.getWidth(); i++) {
                 for (int j = 0; j < newImg.getHeight(); j++) {
-                    newImg.setRGB(i, j, oldImg.getRGB(i+xB, j+xB));
+                    newImg.setRGB(i, j, oldImg.getRGB(i+xB, j+yB));
                 }
             }
             addImage(new ImageProcessor(newImg, "Cropped"));
@@ -130,9 +136,12 @@ public class MainFrame extends JFrame {
         var dataM = (JMenu)menu.getComponent(1);
         var editM = (JMenu)menu.getComponent(2);
         var saveMI = (JMenuItem)fileM.getItem(1);
+        var selectMI = (JMenuItem)fileM.getItem(2);
+
         dataM.setEnabled(activated);
         editM.setEnabled(activated);
         saveMI.setEnabled(activated);
+        selectMI.setEnabled(activated);
     }
     private void addImage(ImageProcessor imgP) {
         images.add(imgP);
@@ -212,7 +221,6 @@ public class MainFrame extends JFrame {
         mb.add(menuData);
         mb.add(menuEdit);
 
-
         // Menu Items
         var miOpen = new JMenuItem("Open");
         menuFile.add(miOpen);
@@ -227,6 +235,8 @@ public class MainFrame extends JFrame {
         menuData.add(miHisto);
         var miCumHisto = new JMenuItem("Cumulative Histo");
         menuData.add(miCumHisto);
+        var miDifference = new JMenuItem("Difference");
+        menuData.add(miDifference);
 
         var miInterval = new JMenuItem("Interval Defined");
         menuEdit.add(miInterval);
@@ -345,6 +355,20 @@ public class MainFrame extends JFrame {
                 } catch(IOException ex) {}
             }
         });
+
+        miDifference.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String filename = chooseFile(true);
+                if (filename == null) {
+                    return;
+                }
+                try {
+                    var imgP = new ImageProcessor(filename);
+                    addImage(activeImage.difference(imgP));
+                } catch(IOException ex) {}
+            }
+        });
+
         miGammaCorrection.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String gamma = JOptionPane.showInputDialog( MainFrame.this, "Input gamma", JOptionPane.QUESTION_MESSAGE);
