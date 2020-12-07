@@ -12,6 +12,18 @@ import java.awt.event.*;
 import java.io.File;
 import java.util.*;
 
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartUtilities;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.data.xy.XYDataset;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
+import org.jfree.chart.*;
+import org.jfree.data.statistics.*;
+import org.jfree.chart.plot.PlotOrientation;
+
 public class MainFrame extends JFrame { 
 
     private static final long serialVersionUID = -477785003793521810L;
@@ -237,6 +249,10 @@ public class MainFrame extends JFrame {
         menuData.add(miCumHisto);
         var miDifference = new JMenuItem("Difference");
         menuData.add(miDifference);
+        var miMapChanges = new JMenuItem("Map changes");
+        menuData.add(miMapChanges);
+        var miCrossSection = new JMenuItem("Image-Cross Section");
+        menuData.add(miCrossSection);
 
         var miInterval = new JMenuItem("Interval Defined");
         menuEdit.add(miInterval);
@@ -297,17 +313,31 @@ public class MainFrame extends JFrame {
                 );
             }
         });
-
         miHisto.addActionListener(new ActionListener() { 
             public void actionPerformed(ActionEvent e) { 
-                var chart = new ChartPanel(getActiveImage().get().getHistogram(), new String[]{},"HISTOGRAM");
+                var dataset = new HistogramDataset();
+                dataset.setType(HistogramType.FREQUENCY);
+                double[] data = activeImage.getGrayValues();
+                dataset.addSeries("Histogram", data, 256, 0, 255);
+                var histo = getActiveImage().get().getHistogram();
+
+                System.out.println(Arrays.toString(histo));
+                String plotTitles = "Histogram - " + activeImage.getFileName();
+                String xaxis = "Gray Level";
+                String yaxis = "Value";
+                
+                boolean show = true;
+                boolean toolTips = true;
+                boolean urls = false;
+                var chart = ChartFactory.createHistogram(plotTitles, xaxis, yaxis, dataset, PlotOrientation.VERTICAL, show, toolTips, urls);
+                var panel = new ImagePanel(chart.createBufferedImage(700, 400));
                 var chartFrame = new JFrame();
-                chartFrame.add(chart);
-                chartFrame.setBounds(dim.width/3,dim.height/3, dim.width/3, dim.height/3);
+                chartFrame.add(panel);
+                chartFrame.pack();
+                chartFrame.setResizable(false);
                 chartFrame.setVisible(true);
             } 
         });
-
         miCumHisto.addActionListener(new ActionListener() { 
             public void actionPerformed(ActionEvent e) { 
                 var chart = new ChartPanel(getActiveImage().get().cumHistogram, new String[]{},"CUMULATIVE HISTOGRAM");
@@ -317,7 +347,6 @@ public class MainFrame extends JFrame {
                 chartFrame.setVisible(true);
             } 
         });
-        
         miInterval.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 var dialog = new IntervalEditDialog(MainFrame.this);
@@ -325,6 +354,93 @@ public class MainFrame extends JFrame {
                     ImageProcessor newImg = activeImage.transformFromIntervals(dialog.fVector, dialog.tVector);
                     addImage(newImg);
                 }
+            }
+        });
+        miDifference.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String filename = chooseFile(true);
+                if (filename == null) {
+                    return;
+                }
+                try {
+                    var imgP = new ImageProcessor(filename);
+                    addImage(activeImage.difference(imgP));
+                } catch(IOException ex) {}
+            }
+        });
+        miMapChanges.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String filename = chooseFile(true);
+                if (filename == null) {
+                    return;
+                }
+                try {
+                    String thresholdStr = JOptionPane.showInputDialog( MainFrame.this, "Input threshold: ", JOptionPane.QUESTION_MESSAGE);
+                    int threshold = Integer.parseInt(thresholdStr);
+                    var imgP = new ImageProcessor(filename);
+                    addImage(activeImage.changesMap(imgP, threshold));
+                    
+                } catch(IOException ex) {}
+            }
+        });
+        miCrossSection.addActionListener(new ActionListener() {
+
+            double[] getDerivative(double[] f) {
+                var der = new double[f.length];
+                for (int i=0; i<f.length-1; i++) {
+                    der[i] = f[i+1] - f[i];
+                }
+                return der;
+            }
+            public void actionPerformed(ActionEvent e) {
+                XYSeries xyseries1 = new XYSeries("Cross Section");
+                double [] data = activeImage.getCrossSection(new Point(27, 511), new Point(1108, 511));
+                for (int i=0; i<data.length; i++) {
+                    xyseries1.add(i, data[i]);
+                }
+                
+                XYSeries xyseries2 = new XYSeries("Derivative");
+                double[] derivative = getDerivative(data);
+                for (int i=0; i<derivative.length; i++) {
+                    xyseries2.add(i, derivative[i]);
+                }
+                /*
+        
+                XYSeries xyseries3 = new XYSeries("Three");
+                xyseries3.add(1987, 40);
+                xyseries3.add(1997, 30.0008);
+                xyseries3.add(2007, 38.24);
+                
+        */
+                XYSeriesCollection xySeriesCollection = new XYSeriesCollection();
+        
+                xySeriesCollection.addSeries(xyseries1);
+                xySeriesCollection.addSeries(xyseries2);
+                //xySeriesCollection.addSeries(xyseries3);
+                XYDataset dataset = xySeriesCollection;//xySeriesCollection;
+
+                JFreeChart jfreechart = ChartFactory.createXYLineChart ( "Image-Cross Section", // title
+                                 "Pixel", // categoryAxisLabel (category axis, horizontal axis, X-axis labels)
+                                 "Gray Level", // valueAxisLabel (value axis, vertical axis, Y-axis labels)
+                        dataset, // dataset
+                        PlotOrientation.VERTICAL, true, // legend
+                        false, // tooltips
+                        false); // URLswidth
+        
+                        // Use CategoryPlot set various parameters. The following settings can be omitted.
+                XYPlot plot = (XYPlot) jfreechart.getPlot();
+                        // background color transparency
+                plot.setBackgroundAlpha(0.5f);
+                        // foreground color transparency
+                plot.setForegroundAlpha(0.5f);
+
+                var img = jfreechart.createBufferedImage(700, 400);
+                var panel = new ImagePanel(img);
+                var chartFrame = new JFrame();
+                chartFrame.add(panel);
+                chartFrame.pack();
+                chartFrame.setResizable(false);
+                chartFrame.setVisible(true);
             }
         });
 
@@ -342,7 +458,6 @@ public class MainFrame extends JFrame {
                 addImage(activeImage.equalize());
             }
         });
-
         miHistoMatch.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String filename = chooseFile(true);
@@ -355,20 +470,6 @@ public class MainFrame extends JFrame {
                 } catch(IOException ex) {}
             }
         });
-
-        miDifference.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                String filename = chooseFile(true);
-                if (filename == null) {
-                    return;
-                }
-                try {
-                    var imgP = new ImageProcessor(filename);
-                    addImage(activeImage.difference(imgP));
-                } catch(IOException ex) {}
-            }
-        });
-
         miGammaCorrection.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String gamma = JOptionPane.showInputDialog( MainFrame.this, "Input gamma", JOptionPane.QUESTION_MESSAGE);

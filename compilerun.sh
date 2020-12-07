@@ -1,2 +1,2 @@
 #!/bin/bash
-javac imagevision/*.java && java imagevision.MainFrame
+javac -cp "lib/*:" imagevision/*.java && java -cp "lib/*:" imagevision.MainFrame

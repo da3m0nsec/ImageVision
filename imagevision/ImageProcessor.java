@@ -9,6 +9,7 @@ import javax.imageio.ImageIO;
 import java.io.File;
 import java.lang.*;
 
+import java.awt.Point;
 import java.lang.Math;
 
 
@@ -49,7 +50,7 @@ class ImageProcessor {
 
         return dif;
     }
-    public BufferedImage changesMap(ImageProcessor img, int threshold) {
+    public ImageProcessor changesMap(ImageProcessor img, int threshold) {
         BufferedImage buf = new BufferedImage(img.getWidth(), img.getHeight(), img.getImage().getType());
         var dif = difference(img);
         for (int i = 0; i< img.getWidth(); i++){
@@ -61,8 +62,7 @@ class ImageProcessor {
             }
         }
 
-        return buf;
-        
+        return new ImageProcessor(buf, "Changes map");
     }
 
     public ImageProcessor histogramMatching(double nch[]) {
@@ -83,7 +83,7 @@ class ImageProcessor {
         }
         return applyTable(table);
     }
-
+    
     public ImageProcessor transformFromBC(double b, double c) {
         var table = new int[256];
         double A = c/contrast;
@@ -164,7 +164,17 @@ class ImageProcessor {
     public double[] getHistogram() {
         return histogram;
     }
-
+    public double[] getGrayValues() {
+        var data = new double[getSize()];
+        int k = 0;
+        for (int i=0; i<image.getWidth(); i++){
+            for (int j=0; j<image.getHeight(); j++){
+                int pixel = getPixel(i, j);
+                data[k++] = pixel;
+            }
+        }
+        return data;
+    }
     public double[] getNormCumHistogram() {
         var normHisto = new double [256];
         for (int i=0; i<normHisto.length; i++){
@@ -172,7 +182,19 @@ class ImageProcessor {
         }
         return normHisto;
     }
-
+    public double[] getCrossSection(Point ini, Point end) {
+        var arr = new double[Math.abs(end.x - ini.x)];
+        double m = (end.y-ini.y)/(end.x-ini.x);
+        double b = end.y-(m*end.x);
+        int xmin = Math.min(ini.x, end.x);
+        int xmax = Math.max(ini.x, end.x);
+        for (int i=xmin, j=0; i<xmax; i++, j++) {
+            double result = i*m + b;
+            int val = getPixel(i, (int)Math.round(result));
+            arr[j] = val;
+        }
+        return arr;
+    }
     public ImageProcessor(String filename) throws IOException {
         fileName = filename;
         var f = new File(filename);
