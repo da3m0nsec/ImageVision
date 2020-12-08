@@ -23,6 +23,7 @@ import org.jfree.data.xy.XYSeriesCollection;
 import org.jfree.chart.*;
 import org.jfree.data.statistics.*;
 import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.renderer.AbstractRenderer;
 
 public class MainFrame extends JFrame { 
 
@@ -34,7 +35,12 @@ public class MainFrame extends JFrame {
     private JDesktopPane desktopPane = new JDesktopPane();
     private JLabel mouseLabel;
     private Dimension dim;
-    private boolean cropping = false;
+    private int pixelsSelected = 0;
+    private ArrayList<Point> pixels = new ArrayList<Point> (2);
+    private State state = State.NONE;
+
+
+    private enum State {NONE, CROPPING, LINE};
     
     private int map(int istart, int iend, int ostart, int oend, int val) {
         val = ImageProcessor.clamp(val, istart, iend);
@@ -42,46 +48,145 @@ public class MainFrame extends JFrame {
         return ostart + (int)Math.round(slope * (val - istart));
         
     }
+    private double[] getDerivative(double[] f) {
+        var der = new double[f.length];
+        int i;
+        for (i=0; i<f.length-1; i++) {
+            der[i] = f[i+1] - f[i];
+        }
+        der[i] = der[i-1];
+        return der;
+    }
+
+    private double[] getSmoothed(double [] f) {
+        var smo = new double[f.length];
+        smo[0] = (f[0] + f[1])/2;
+        int i;
+        for (i=1; i<f.length-1; i++) {
+            smo[i] = (f[i-1] + f[i] + f[i+1])/3;
+        }
+        smo[i] = (f[i-1] + f[i])/2;
+        return smo;
+    }
+
     
     private MouseInputAdapter mouseListener = new MouseInputAdapter(){
         int xB = 0, yB = 0;
         @Override
         public void mouseReleased(MouseEvent e) {
-            if (!cropping) {
-                return;
-            }
-            int x = e.getX();
-            int y = e.getY();
-            x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
-            y = map(0, activePanel.getHeight(), 0, activeImage.getImage().getHeight(), y);
-            
-            System.out.println("xFinal: " + x + " Inicial: " +xB);
-            System.out.println("yFinal: " + y + " Inicial: " +yB);
-            var oldImg = activeImage.getImage();
-            var newImg = new BufferedImage(Math.abs(x-xB), Math.abs(y-yB), oldImg.getType());
-            //int iN = 0, jN = 0; 
-            xB = Math.min(x, xB);
-            yB = Math.min(y, yB);
+            if (state == State.CROPPING) {
+                int x = e.getX();
+                int y = e.getY();
+                x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
+                y = map(0, activePanel.getHeight(), 0, activeImage.getImage().getHeight(), y);
+                
+                System.out.println("xFinal: " + x + " Inicial: " +xB);
+                System.out.println("yFinal: " + y + " Inicial: " +yB);
+                var oldImg = activeImage.getImage();
+                var newImg = new BufferedImage(Math.abs(x-xB), Math.abs(y-yB), oldImg.getType());
+                //int iN = 0, jN = 0; 
+                xB = Math.min(x, xB);
+                yB = Math.min(y, yB);
 
-            for (int i = 0; i < newImg.getWidth(); i++) {
-                for (int j = 0; j < newImg.getHeight(); j++) {
-                    newImg.setRGB(i, j, oldImg.getRGB(i+xB, j+yB));
+                for (int i = 0; i < newImg.getWidth(); i++) {
+                    for (int j = 0; j < newImg.getHeight(); j++) {
+                        newImg.setRGB(i, j, oldImg.getRGB(i+xB, j+yB));
+                    }
                 }
+                addImage(new ImageProcessor(newImg, "Cropped"));
+                state = State.NONE;
             }
-            addImage(new ImageProcessor(newImg, "Cropped"));
-            cropping = false;
+            return;
         }
         @Override
         public void mousePressed(MouseEvent e) {
-            if (!cropping) {
+            if (state == State.NONE) {
                 return;
             }
-            int x = e.getX();
-            int y = e.getY();
-            x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
-            y = map(0, activePanel.getHeight(), 0, activeImage.getImage().getHeight(), y);
-            xB = x;
-            yB = y;
+           
+            if (state == State.CROPPING || state == State.LINE) {
+                int x = e.getX();
+                int y = e.getY();
+                x = map(0, activePanel.getWidth(), 0, activeImage.getImage().getWidth(), x);
+                y = map(0, activePanel.getHeight(), 0, activeImage.getImage().getHeight(), y);
+                xB = x;
+                yB = y;
+            }
+
+            if (state == State.LINE){
+                if (pixelsSelected < 2){
+                    pixels.add(new Point (xB,yB));
+                    pixelsSelected++;
+                }
+                if (pixelsSelected == 2){
+                    pixelsSelected = 0;
+                    state = State.NONE;
+                    XYSeries xyseries1 = new XYSeries("Cross Section");
+                    double [] data = activeImage.getCrossSection(pixels.get(0), pixels.get(1));
+                    
+                    pixels.clear();
+                    for (int i=0; i<data.length; i++) {
+                        xyseries1.add(i, data[i]);
+                    }
+                    
+                    XYSeries xyseries2 = new XYSeries("Derivative");
+                    double[] derivative = getDerivative(data);
+                    for (int i=0; i<derivative.length; i++) {
+                        xyseries2.add(i, derivative[i]);
+                    }
+    
+                    XYSeries xyseries3 = new XYSeries("Smoothed");
+                    double[] smoothed = getSmoothed(data);
+                    for (int i=0; i<smoothed.length; i++) {
+                        xyseries3.add(i, smoothed[i]);
+                    }
+    
+                    XYSeries xyseries4 = new XYSeries("Smoothed derivative");
+                    double[] smoothedder = getDerivative(smoothed);
+                    for (int i=0; i<smoothedder.length; i++) {
+                        xyseries4.add(i, smoothedder[i]);
+                    }
+    
+                    XYSeriesCollection xySeriesCollection = new XYSeriesCollection();
+            
+                    xySeriesCollection.addSeries(xyseries1);
+                    xySeriesCollection.addSeries(xyseries2);
+                    xySeriesCollection.addSeries(xyseries3);
+                    xySeriesCollection.addSeries(xyseries4);
+    
+                    XYDataset dataset = xySeriesCollection;//xySeriesCollection;
+    
+                    JFreeChart jfreechart = ChartFactory.createXYLineChart ( "Image-Cross Section", // title
+                                     "Pixel", // categoryAxisLabel (category axis, horizontal axis, X-axis labels)
+                                     "Gray Level", // valueAxisLabel (value axis, vertical axis, Y-axis labels)
+                            dataset, // dataset
+                            PlotOrientation.VERTICAL, true, // legend
+                            false, // tooltips
+                            false); // URLswidth
+            
+                            // Use CategoryPlot set various parameters. The following settings can be omitted.
+                    XYPlot plot = jfreechart.getXYPlot();
+                            // background color transparency
+                    plot.setBackgroundAlpha(0.5f);
+                            // foreground color transparency
+                    plot.setForegroundAlpha(0.5f);
+
+                    var renderer = plot.getRenderer();
+                    renderer.setBaseStroke(new BasicStroke(3.0f));    
+                    ((AbstractRenderer)renderer).setAutoPopulateSeriesStroke(false);            
+    
+                    var img = jfreechart.createBufferedImage(700, 400);
+                    var panel = new ImagePanel(img);
+                    var chartFrame = new JFrame();
+                    chartFrame.add(panel);
+                    chartFrame.pack();
+                    chartFrame.setResizable(false);
+                    chartFrame.setVisible(true);
+                }
+                
+            }
+
+
         }
         @Override
         public void mouseMoved(MouseEvent e) { 
@@ -264,6 +369,10 @@ public class MainFrame extends JFrame {
         menuEdit.add(miHistoMatch);
         var miGammaCorrection = new JMenuItem("Gamma Correction");
         menuEdit.add(miGammaCorrection);
+        var miMuestrate = new JMenuItem("Muestrate");
+        menuEdit.add(miMuestrate);
+        var miDigitalize = new JMenuItem("Digitalize");
+        menuEdit.add(miDigitalize);
 
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
@@ -296,7 +405,7 @@ public class MainFrame extends JFrame {
         });
         miSel.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                cropping = true;
+                state = State.CROPPING;
             }
         });
 
@@ -384,64 +493,13 @@ public class MainFrame extends JFrame {
             }
         });
         miCrossSection.addActionListener(new ActionListener() {
-
-            double[] getDerivative(double[] f) {
-                var der = new double[f.length];
-                for (int i=0; i<f.length-1; i++) {
-                    der[i] = f[i+1] - f[i];
-                }
-                return der;
-            }
+            
             public void actionPerformed(ActionEvent e) {
-                XYSeries xyseries1 = new XYSeries("Cross Section");
-                double [] data = activeImage.getCrossSection(new Point(27, 511), new Point(1108, 511));
-                for (int i=0; i<data.length; i++) {
-                    xyseries1.add(i, data[i]);
-                }
-                
-                XYSeries xyseries2 = new XYSeries("Derivative");
-                double[] derivative = getDerivative(data);
-                for (int i=0; i<derivative.length; i++) {
-                    xyseries2.add(i, derivative[i]);
-                }
-                /*
-        
-                XYSeries xyseries3 = new XYSeries("Three");
-                xyseries3.add(1987, 40);
-                xyseries3.add(1997, 30.0008);
-                xyseries3.add(2007, 38.24);
-                
-        */
-                XYSeriesCollection xySeriesCollection = new XYSeriesCollection();
-        
-                xySeriesCollection.addSeries(xyseries1);
-                xySeriesCollection.addSeries(xyseries2);
-                //xySeriesCollection.addSeries(xyseries3);
-                XYDataset dataset = xySeriesCollection;//xySeriesCollection;
-
-                JFreeChart jfreechart = ChartFactory.createXYLineChart ( "Image-Cross Section", // title
-                                 "Pixel", // categoryAxisLabel (category axis, horizontal axis, X-axis labels)
-                                 "Gray Level", // valueAxisLabel (value axis, vertical axis, Y-axis labels)
-                        dataset, // dataset
-                        PlotOrientation.VERTICAL, true, // legend
-                        false, // tooltips
-                        false); // URLswidth
-        
-                        // Use CategoryPlot set various parameters. The following settings can be omitted.
-                XYPlot plot = (XYPlot) jfreechart.getPlot();
-                        // background color transparency
-                plot.setBackgroundAlpha(0.5f);
-                        // foreground color transparency
-                plot.setForegroundAlpha(0.5f);
-
-                var img = jfreechart.createBufferedImage(700, 400);
-                var panel = new ImagePanel(img);
-                var chartFrame = new JFrame();
-                chartFrame.add(panel);
-                chartFrame.pack();
-                chartFrame.setResizable(false);
-                chartFrame.setVisible(true);
+                state = State.LINE;
+                pixelsSelected = 0;
             }
+
+            
         });
 
         miAdjust.addActionListener(new ActionListener() {
@@ -475,6 +533,32 @@ public class MainFrame extends JFrame {
                 String gamma = JOptionPane.showInputDialog( MainFrame.this, "Input gamma", JOptionPane.QUESTION_MESSAGE);
                 try {
                     addImage(activeImage.gammaCorrection(Double.parseDouble(gamma)));
+                }
+                catch (final NumberFormatException ex) {}
+            }
+        });
+        miMuestrate.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String samples = JOptionPane.showInputDialog( MainFrame.this, "Input sample size", JOptionPane.QUESTION_MESSAGE);
+                try {
+                    addImage(activeImage.muestrate(Integer.parseInt(samples)));
+                }
+                catch (final NumberFormatException ex) {}
+            }
+        });
+        miDigitalize.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    int bits = Integer.parseInt(JOptionPane.showInputDialog( MainFrame.this, "Input bit number", JOptionPane.QUESTION_MESSAGE));
+                    //int[] tvector = {255, 1<<bits};
+                    int[] tvector = {255, 64};
+                    int[] fvector = {0,0};
+
+                    var img = activeImage.transformFromIntervals(fvector, tvector);
+
+                    int []tvector2 = {64, 255};
+
+                    addImage(img.transformFromIntervals(fvector, tvector2));
                 }
                 catch (final NumberFormatException ex) {}
             }

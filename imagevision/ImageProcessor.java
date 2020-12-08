@@ -123,6 +123,21 @@ class ImageProcessor {
         }
         return applyTable(table);
     }
+    public ImageProcessor muestrate (int samples) {
+        BufferedImage buf = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
+        for (int i=0; i<image.getWidth()-samples; i+=samples){
+            for (int j=0; j<image.getHeight()-samples; j+=samples) {
+                int newVal = image.getRGB(i, j);
+                for (int k=i; k<i+samples; k++){
+                    for (int l=j; l<j+samples; l++) { 
+                        buf.setRGB(k,l,newVal);
+                    }
+                }
+            }
+        }
+        return new ImageProcessor(buf, fileName);
+    }
+
 
     public ImageProcessor applyTable(int[] table) {
         BufferedImage buf = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
