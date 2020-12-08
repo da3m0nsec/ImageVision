@@ -11,6 +11,7 @@ import java.awt.image.*;
 import java.awt.event.*;
 import java.io.File;
 import java.util.*;
+import java.util.function.Consumer;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtilities;
@@ -38,10 +39,11 @@ public class MainFrame extends JFrame {
     private int pixelsSelected = 0;
     private ArrayList<Point> pixels = new ArrayList<Point> (2);
     private State state = State.NONE;
+    private JPanel statePanel;
 
 
     private enum State {NONE, CROPPING, LINE};
-    
+    private Consumer<ImageProcessor> selected = null;
     private int map(int istart, int iend, int ostart, int oend, int val) {
         val = ImageProcessor.clamp(val, istart, iend);
         double slope = (double)(oend - ostart)/(iend - istart);
@@ -182,11 +184,8 @@ public class MainFrame extends JFrame {
                     chartFrame.pack();
                     chartFrame.setResizable(false);
                     chartFrame.setVisible(true);
-                }
-                
+                }   
             }
-
-
         }
         @Override
         public void mouseMoved(MouseEvent e) { 
@@ -214,9 +213,11 @@ public class MainFrame extends JFrame {
         activateImgMenus(false);
         add(desktopPane);
         desktopPane.setVisible(true);
-
+	statePanel = new JPanel(new CardLayout());
         mouseLabel = new JLabel("x: y: ");
-        add(mouseLabel, BorderLayout.SOUTH);
+        statePanel.add(mouseLabel, "Coords");
+        statePanel.add(new JLabel("Select an image by clicking it"), "SelImgs");
+        add(statePanel, BorderLayout.SOUTH);
         setVisible(true);
     }
      
@@ -271,11 +272,19 @@ public class MainFrame extends JFrame {
                 if (activePanel != null) {
                     activePanel.removeMouseMotionListener(mouseListener);
                     activePanel.removeMouseListener(mouseListener);
-
                 }
+                
                 var comp = e.getInternalFrame().getContentPane().getComponent(0);
                 activePanel = (ImagePanel)comp;
+                System.out.println("Detectadio" + getActiveImage().get().getFileName());
+                if (selected != null) {
+                    chooseStateBar("Coords");
+               	    var called = selected;
+               	    selected = null;
+                    called.accept(getActiveImage().get());
+                }
                 activeImage = getActiveImage().get();
+                
                 activePanel.addMouseMotionListener(mouseListener);
                 activePanel.addMouseListener(mouseListener);
             }
@@ -301,6 +310,10 @@ public class MainFrame extends JFrame {
         internalFrame.pack();
         internalFrame.setVisible(true);
         activateImgMenus(true);
+    }
+    private void chooseStateBar(String c) {
+        var cl = (CardLayout)(statePanel.getLayout());
+    	cl.show(statePanel, c);
     }
 
     private Optional<ImageProcessor> getImageFromFrame (JInternalFrame j) {
@@ -467,19 +480,21 @@ public class MainFrame extends JFrame {
         });
         miDifference.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String filename = chooseFile(true);
+                /*String filename = chooseFile(true);
                 if (filename == null) {
                     return;
                 }
                 try {
                     var imgP = new ImageProcessor(filename);
                     addImage(activeImage.difference(imgP));
-                } catch(IOException ex) {}
+                } catch(IOException ex) {}*/
+                chooseStateBar("SelImgs");
+                selected = (ImageProcessor img) -> addImage(activeImage.difference(img));
             }
         });
         miMapChanges.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String filename = chooseFile(true);
+                /*String filename = chooseFile(true);
                 if (filename == null) {
                     return;
                 }
@@ -489,22 +504,24 @@ public class MainFrame extends JFrame {
                     var imgP = new ImageProcessor(filename);
                     addImage(activeImage.changesMap(imgP, threshold));
                     
-                } catch(IOException ex) {}
+                } catch(IOException ex) {}*/
+                
+                String thresholdStr = JOptionPane.showInputDialog( MainFrame.this, "Input threshold: ", JOptionPane.QUESTION_MESSAGE);
+                int threshold = Integer.parseInt(thresholdStr);
+                chooseStateBar("SelImgs");
+                selected = (ImageProcessor img) -> addImage(activeImage.changesMap(img, threshold));
             }
         });
         miCrossSection.addActionListener(new ActionListener() {
-            
             public void actionPerformed(ActionEvent e) {
                 state = State.LINE;
                 pixelsSelected = 0;
             }
-
-            
         });
 
         miAdjust.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                var dialog = new AdjustDialog(MainFrame.this);
+                var dialog = new AdjustDialog(MainFrame.this, activeImage.getBrightness(), activeImage.getContrast());
                 if (dialog.doModal()) {
                     ImageProcessor newImg = activeImage.transformFromBC(dialog.brightness, dialog.contrast);
                     addImage(newImg);
@@ -518,14 +535,16 @@ public class MainFrame extends JFrame {
         });
         miHistoMatch.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String filename = chooseFile(true);
+                /*String filename = chooseFile(true);
                 if (filename == null) {
                     return;
                 }
                 try {
                     var imgP = new ImageProcessor(filename);
                     addImage(activeImage.histogramMatching(imgP.getNormCumHistogram()));
-                } catch(IOException ex) {}
+                } catch(IOException ex) {}*/
+                chooseStateBar("SelImgs");
+                selected = (ImageProcessor img) -> addImage(activeImage.histogramMatching(img.getNormCumHistogram()));
             }
         });
         miGammaCorrection.addActionListener(new ActionListener() {
@@ -550,13 +569,14 @@ public class MainFrame extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 try {
                     int bits = Integer.parseInt(JOptionPane.showInputDialog( MainFrame.this, "Input bit number", JOptionPane.QUESTION_MESSAGE));
-                    //int[] tvector = {255, 1<<bits};
-                    int[] tvector = {255, 64};
+                    int[] tvector = {255, 1<<bits};
+                    
+                    //int[] tvector = {255, 64};
                     int[] fvector = {0,0};
 
                     var img = activeImage.transformFromIntervals(fvector, tvector);
 
-                    int []tvector2 = {64, 255};
+                    int []tvector2 = {1<<bits, 255};
 
                     addImage(img.transformFromIntervals(fvector, tvector2));
                 }

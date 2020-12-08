@@ -10,12 +10,12 @@ class AdjustDialog extends JDialog{
     public double brightness, contrast;
     private boolean finished = false;
 
-    public AdjustDialog (Frame owner){
+    public AdjustDialog (Frame owner, double oldB, double oldC){
         super(owner);
-        createDialog();
+        createDialog(oldB, oldC);
     }
 
-    public void createDialog (){
+    public void createDialog (double oldB, double oldC){
         setPreferredSize(new Dimension(200, 140));
         setLayout(new BorderLayout());
         setTitle("Adjust Brightness and Contrast");
@@ -24,11 +24,13 @@ class AdjustDialog extends JDialog{
         var centerPanel = new JPanel(new FlowLayout());
         centerPanel.add(new JLabel("Brightness: "));
 
-        var brightField = new JTextField(3);
+        var brightField = new JTextField(6);
+        brightField.setText(String.valueOf(oldB));
         centerPanel.add(brightField);
         centerPanel.add(new JLabel("Contrast: "));
 
-        var contrastField = new JTextField(3);
+        var contrastField = new JTextField(6);
+        contrastField.setText(String.valueOf(oldC));
         centerPanel.add(contrastField);
 
 
