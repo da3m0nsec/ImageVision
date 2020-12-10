@@ -38,12 +38,12 @@ public class MainFrame extends JFrame {
     private Dimension dim;
     private int pixelsSelected = 0;
     private ArrayList<Point> pixels = new ArrayList<Point> (2);
-    private State state = State.NONE;
     private JPanel statePanel;
-
-
-    private enum State {NONE, CROPPING, LINE};
     private Consumer<ImageProcessor> selected = null;
+    
+    private State state = State.NONE;
+    private enum State {NONE, CROPPING, LINE};
+
     private int map(int istart, int iend, int ostart, int oend, int val) {
         val = ImageProcessor.clamp(val, istart, iend);
         double slope = (double)(oend - ostart)/(iend - istart);
@@ -400,6 +400,7 @@ public class MainFrame extends JFrame {
                 } catch(IOException ex) {}
             }
         });
+
         miSave.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 try {
@@ -435,6 +436,7 @@ public class MainFrame extends JFrame {
                 );
             }
         });
+
         miHisto.addActionListener(new ActionListener() { 
             public void actionPerformed(ActionEvent e) { 
                 var dataset = new HistogramDataset();
@@ -480,32 +482,12 @@ public class MainFrame extends JFrame {
         });
         miDifference.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                /*String filename = chooseFile(true);
-                if (filename == null) {
-                    return;
-                }
-                try {
-                    var imgP = new ImageProcessor(filename);
-                    addImage(activeImage.difference(imgP));
-                } catch(IOException ex) {}*/
                 chooseStateBar("SelImgs");
                 selected = (ImageProcessor img) -> addImage(activeImage.difference(img));
             }
         });
         miMapChanges.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                /*String filename = chooseFile(true);
-                if (filename == null) {
-                    return;
-                }
-                try {
-                    String thresholdStr = JOptionPane.showInputDialog( MainFrame.this, "Input threshold: ", JOptionPane.QUESTION_MESSAGE);
-                    int threshold = Integer.parseInt(thresholdStr);
-                    var imgP = new ImageProcessor(filename);
-                    addImage(activeImage.changesMap(imgP, threshold));
-                    
-                } catch(IOException ex) {}*/
-                
+            public void actionPerformed(ActionEvent e) {                
                 String thresholdStr = JOptionPane.showInputDialog( MainFrame.this, "Input threshold: ", JOptionPane.QUESTION_MESSAGE);
                 int threshold = Integer.parseInt(thresholdStr);
                 chooseStateBar("SelImgs");
@@ -535,14 +517,6 @@ public class MainFrame extends JFrame {
         });
         miHistoMatch.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                /*String filename = chooseFile(true);
-                if (filename == null) {
-                    return;
-                }
-                try {
-                    var imgP = new ImageProcessor(filename);
-                    addImage(activeImage.histogramMatching(imgP.getNormCumHistogram()));
-                } catch(IOException ex) {}*/
                 chooseStateBar("SelImgs");
                 selected = (ImageProcessor img) -> addImage(activeImage.histogramMatching(img.getNormCumHistogram()));
             }

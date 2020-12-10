@@ -57,7 +57,7 @@ class ImageProcessor {
             for (int j = 0; j< img.getHeight(); j++){
                 var pixeldif = dif.getPixel(i, j);
                 var pixel = getPixel(i, j);
-                var color = new Color(pixeldif>threshold?255:pixel,pixel,pixel).getRGB();
+                var color = (pixeldif>threshold? new Color(255,0,0) :new Color (pixel,pixel,pixel)).getRGB();
                 buf.setRGB(i, j, color);
             }
         }
