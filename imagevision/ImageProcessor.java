@@ -153,6 +153,80 @@ class ImageProcessor {
         return new ImageProcessor(buf, fileName);
     }
 
+    public ImageProcessor hflip () {
+        BufferedImage buf = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
+        for (int i = 0; i < image.getWidth(); i++) {
+            for (int j = 0; j < image.getHeight(); j++) {
+                int newVal = getPixel(i, j);
+                buf.setRGB(getWidth()-i-1, j, new Color(newVal, newVal, newVal).getRGB());
+            }
+        }
+        return new ImageProcessor(buf, fileName);
+    } 
+
+    public ImageProcessor vflip () {
+        BufferedImage buf = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
+        for (int i = 0; i < image.getWidth(); i++) {
+            for (int j = 0; j < image.getHeight(); j++) {
+                int newVal = getPixel(i, j);
+                buf.setRGB(i, getHeight()-j-1, new Color(newVal, newVal, newVal).getRGB());
+            }
+        }
+        return new ImageProcessor(buf, fileName);
+    } 
+
+    public ImageProcessor rotateRight (int times) {
+        var temp = this;
+        while (times --> 0){
+            temp = temp.rotateOnce();
+        }
+        return temp;
+    }
+    
+    private ImageProcessor rotateOnce () {
+        BufferedImage buf = new BufferedImage(image.getHeight(),image.getWidth(), image.getType());
+        for (int i = 0; i < image.getWidth(); i++) {
+            for (int j = 0; j < image.getHeight(); j++) {
+                int newVal = getPixel(i, j);
+                buf.setRGB(getHeight()-j-1, i, new Color(newVal, newVal, newVal).getRGB());
+            }
+        }
+        return new ImageProcessor(buf, fileName);
+    }
+
+    static int nearestNeighbour(BufferedImage in, BufferedImage out, int x, int y) {
+        var Xnear = (int) (((float) x) / out.getWidth() * (in.getWidth()-1));
+        var Ynear = (int) (((float) y) / out.getHeight() * (in.getHeight()-1));
+        return in.getPixel(Xnear,Ynear);
+    }
+
+    static int bilinearAdjust (BufferedImage in, BufferedImage out, int x, int y) {
+        //esto me suena, está feo
+        float gx = ((float) x) / out.getWidth() * (in.getWidth() -1);
+        float gy = ((float) y) / out.getHeight() * (in.getHeight() -1);
+
+        int gxi = (int) gx; //????????????
+        int gyi = (int) gy; //????????????
+
+        int grey = 0;
+
+        int c00 = in.getRGB(gxi, gyi);
+        int c10 = in.getRGB(gxi+1, gyi);
+        int c01 = in.getRGB(gxi, gyi);
+        int c11 = in.getRGB(gxi+1, gyi);
+
+        for (int i=0; i<=2; ++i){
+            float b00 = get(c00, i);
+            float b10 = get(c10, i);
+            float b01 = get(c01, i);
+            float b11 = get(c11, i);
+
+            int ble = ((int) blerp(b00,b10,b01,b11,gx-gxi,gy-gyi)) << (8*i);
+            grey = grey | ble;
+        }
+        return grey;
+    }
+
     public int getPixel(int i, int j) {
         return new Color(image.getRGB(i, j)).getGreen();
     }

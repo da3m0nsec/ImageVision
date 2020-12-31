@@ -256,6 +256,8 @@ public class MainFrame extends JFrame {
         var fileM = (JMenu) menu.getComponent(0);
         var dataM = (JMenu) menu.getComponent(1);
         var editM = (JMenu) menu.getComponent(2);
+        var geoM = (JMenu) menu.getComponent(3);
+
         var saveMI = (JMenuItem) fileM.getItem(1);
         var selectMI = (JMenuItem) fileM.getItem(2);
 
@@ -263,6 +265,7 @@ public class MainFrame extends JFrame {
         editM.setEnabled(activated);
         saveMI.setEnabled(activated);
         selectMI.setEnabled(activated);
+        geoM.setEnabled(activated);
     }
 
     private void addImage(ImageProcessor imgP) {
@@ -352,10 +355,14 @@ public class MainFrame extends JFrame {
         var menuFile = new JMenu("File");
         var menuData = new JMenu("Data");
         var menuEdit = new JMenu("Edit");
+        var menuGeometry = new JMenu("Geometry");
+
 
         mb.add(menuFile);
         mb.add(menuData);
         mb.add(menuEdit);
+        mb.add(menuGeometry);
+
 
         // Menu Items
         var miOpen = new JMenuItem("Open");
@@ -392,6 +399,23 @@ public class MainFrame extends JFrame {
         menuEdit.add(miMuestrate);
         var miDigitalize = new JMenuItem("Digitalize");
         menuEdit.add(miDigitalize);
+
+        var miHFlip = new JMenuItem("Horizontal Flip");
+        menuGeometry.add(miHFlip);
+        var miVFlip = new JMenuItem("Vertical Flip");
+        menuGeometry.add(miVFlip);
+        var miTranspose = new JMenuItem("Transpose");
+        menuGeometry.add(miTranspose);
+        var miScale = new JMenuItem("Scale");
+        menuGeometry.add(miScale);
+        var submenuRotate = new JMenu("Rotate");
+        menuGeometry.add(submenuRotate);
+        var mi90 = new JMenuItem("90º");
+        submenuRotate.add(mi90);
+        var mi180 = new JMenuItem("180º");
+        submenuRotate.add(mi180);
+        var mi270 = new JMenuItem("270º");
+        submenuRotate.add(mi270);
 
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
@@ -567,6 +591,71 @@ public class MainFrame extends JFrame {
                 }
             }
         });
+        miHFlip.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addImage(activeImage.hflip());     
+            }
+        });
+        miVFlip.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addImage(activeImage.vflip());     
+            }
+        });
+        miTranspose.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addImage(activeImage.rotateRight(1).hflip()); 
+            }
+        });
+        mi90.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addImage(activeImage.rotateRight(1)); 
+            }
+        });
+        mi180.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addImage(activeImage.rotateRight(2)); 
+            }
+        });
+        mi270.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addImage(activeImage.rotateRight(3)); 
+            }
+        });
+        miScale.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                JTextField xField = new JTextField(8);
+                JTextField yField = new JTextField(8);
+
+                JPanel myPanel = new JPanel();
+                myPanel.add(new JLabel("New width:"));
+                xField.setText(String.valueOf(activeImage.getWidth()));
+                myPanel.add(xField);
+                myPanel.add(Box.createHorizontalStrut(15)); // a spacer
+                myPanel.add(new JLabel("New height:"));
+                yField.setText(String.valueOf(activeImage.getHeight()));
+                myPanel.add(yField);
+
+                int result = JOptionPane.showConfirmDialog(null, myPanel, 
+                "Please Enter X and Y Values", JOptionPane.OK_CANCEL_OPTION);
+                if (result != JOptionPane.OK_OPTION) {
+                    return;
+                }
+                String[] options = {"Nearest neighbour", "Bilineal"};
+                String samples = (String)JOptionPane.showInputDialog(MainFrame.this, "Select scale method", "Scale method",
+                JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+                try {   
+                    addImage(activeImage.scale(Integer.parseInt(xField.getText()), Integer.parseInt(yField.getText())));
+                } catch (final NumberFormatException ex) {
+                }
+            }
+        });
+        /*
+        var miScale = new JMenuItem("Scale");
+        menuGeometry.add(miScale);
+        var submenuRotate = new JMenu("Rotate");
+        menuGeometry.add(submenuRotate);
+        
+        */
         return mb;
     }
 }

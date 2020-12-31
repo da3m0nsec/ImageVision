@@ -33,7 +33,6 @@ class AdjustDialog extends JDialog{
         contrastField.setText(String.valueOf(oldC));
         centerPanel.add(contrastField);
 
-
         var southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         southPanel.add(done);
 
