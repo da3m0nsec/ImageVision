@@ -194,37 +194,18 @@ class ImageProcessor {
         return new ImageProcessor(buf, fileName);
     }
 
-    static int nearestNeighbour(BufferedImage in, BufferedImage out, int x, int y) {
-        var Xnear = (int) (((float) x) / out.getWidth() * (in.getWidth()-1));
-        var Ynear = (int) (((float) y) / out.getHeight() * (in.getHeight()-1));
-        return in.getPixel(Xnear,Ynear);
-    }
+    
 
-    static int bilinearAdjust (BufferedImage in, BufferedImage out, int x, int y) {
-        //esto me suena, está feo
-        float gx = ((float) x) / out.getWidth() * (in.getWidth() -1);
-        float gy = ((float) y) / out.getHeight() * (in.getHeight() -1);
 
-        int gxi = (int) gx; //????????????
-        int gyi = (int) gy; //????????????
-
-        int grey = 0;
-
-        int c00 = in.getRGB(gxi, gyi);
-        int c10 = in.getRGB(gxi+1, gyi);
-        int c01 = in.getRGB(gxi, gyi);
-        int c11 = in.getRGB(gxi+1, gyi);
-
-        for (int i=0; i<=2; ++i){
-            float b00 = get(c00, i);
-            float b10 = get(c10, i);
-            float b01 = get(c01, i);
-            float b11 = get(c11, i);
-
-            int ble = ((int) blerp(b00,b10,b01,b11,gx-gxi,gy-gyi)) << (8*i);
-            grey = grey | ble;
+    public ImageProcessor scale (InterpolationMethods method, int width, int height) {
+        BufferedImage buf = new BufferedImage(width, height, image.getType());
+        for (int i = 0; i < width; i++) {
+            for (int j = 0; j < height; j++) {
+                int newVal = method.method(this,buf,i,j);
+                buf.setRGB(i, j, new Color(newVal, newVal, newVal).getRGB());
+            }
         }
-        return grey;
+        return new ImageProcessor(buf, fileName);
     }
 
     public int getPixel(int i, int j) {
@@ -388,5 +369,47 @@ class ImageProcessor {
         }
         entropy = (Math.floor(-sumd * 100)) / 100;
     }
+}
 
+interface InterpolationMethods {
+    public int method (ImageProcessor in, BufferedImage out, int x, int y);
+
+    public static int nearestNeighbour(ImageProcessor in, BufferedImage out, int x, int y) {
+        var Xnear = (int) (((float) x) / out.getWidth() * (in.getWidth()-1));
+        var Ynear = (int) (((float) y) / out.getHeight() * (in.getHeight()-1));
+        return in.getPixel(Xnear,Ynear);
+    }
+
+    public static int bilinearAdjust (ImageProcessor in, BufferedImage out, int x, int y) {
+        //esto me suena, está feo
+        float gx = ((float) x) / out.getWidth() * (in.getWidth() -1);
+        float gy = ((float) y) / out.getHeight() * (in.getHeight() -1);
+
+        int gxi = (int) gx; //????????????
+        int gyi = (int) gy; //????????????
+
+        int grey = 0;
+
+        int a = in.getPixel(gxi+1, gyi);
+        int b = in.getPixel(gxi+1, gyi+1);
+        int c = in.getPixel(gxi, gyi);
+        int d = in.getPixel(gxi, gyi+1);
+
+        int p = x-gxi;
+        int q = y-gyi;
+
+        grey = ImageProcessor.clamp(c+(d-c)*p+(a-c)*q+(b+c-a-d)*p*q,0,255);
+        /*
+        for (int i=0; i<=2; ++i){
+            float b00 = get(c00, i);
+            float b10 = get(c10, i);
+            float b01 = get(c01, i);
+            float b11 = get(c11, i);
+
+            int ble = ((int) blerp(b00,b10,b01,b11,gx-gxi,gy-gyi)) << (8*i);
+            grey = grey | ble;
+        }
+        */
+        return grey;
+    }
 }

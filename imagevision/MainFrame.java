@@ -636,15 +636,26 @@ public class MainFrame extends JFrame {
                 myPanel.add(yField);
 
                 int result = JOptionPane.showConfirmDialog(null, myPanel, 
-                "Please Enter X and Y Values", JOptionPane.OK_CANCEL_OPTION);
+                "Please Enter scale values", JOptionPane.OK_CANCEL_OPTION);
                 if (result != JOptionPane.OK_OPTION) {
                     return;
                 }
                 String[] options = {"Nearest neighbour", "Bilineal"};
-                String samples = (String)JOptionPane.showInputDialog(MainFrame.this, "Select scale method", "Scale method",
-                JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+                String interpolation = (String)JOptionPane.showInputDialog(MainFrame.this,
+                                        "Select scale method", "Scale method",
+                                        JOptionPane.QUESTION_MESSAGE, null, options, 
+                                        options[0]);
                 try {   
-                    addImage(activeImage.scale(Integer.parseInt(xField.getText()), Integer.parseInt(yField.getText())));
+                    if (interpolation == "Nearest neighbour"){
+                        addImage(activeImage.scale(InterpolationMethods::nearestNeighbour,
+                            Integer.parseInt(xField.getText()), 
+                            Integer.parseInt(yField.getText())));
+                    }
+                    if (interpolation == "Bilineal"){
+                        addImage(activeImage.scale(InterpolationMethods::bilinearAdjust,
+                            Integer.parseInt(xField.getText()), 
+                            Integer.parseInt(yField.getText())));
+                    }
                 } catch (final NumberFormatException ex) {
                 }
             }
