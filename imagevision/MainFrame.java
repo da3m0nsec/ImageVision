@@ -416,7 +416,8 @@ public class MainFrame extends JFrame {
         submenuRotate.add(mi180);
         var mi270 = new JMenuItem("270º");
         submenuRotate.add(mi270);
-
+        var miRotFree = new JMenuItem("Free");
+        submenuRotate.add(miRotFree);
         // Menu Listeners
         miOpen.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -619,6 +620,32 @@ public class MainFrame extends JFrame {
         mi270.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 addImage(activeImage.rotateRight(3)); 
+            }
+        });
+        miRotFree.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                double angle;
+                try {
+                    angle = Double.parseDouble(JOptionPane.showInputDialog(MainFrame.this, "Input angle",
+                            JOptionPane.QUESTION_MESSAGE));
+                    angle = Math.toRadians(angle);
+                } catch (final NumberFormatException ex) {
+                    return;
+                }
+                String[] options = {"Nearest neighbour", "Bilineal"};
+                String interpolation = (String)JOptionPane.showInputDialog(MainFrame.this,
+                                        "Select scale method", "Scale method",
+                                        JOptionPane.QUESTION_MESSAGE, null, options, 
+                                        options[0]);
+                try {   
+                    if (interpolation == "Nearest neighbour"){
+                        addImage(activeImage.rotate(InterpolationMethods::nearestNeighbour, angle));
+                    }
+                    else if (interpolation == "Bilineal"){
+                        addImage(activeImage.rotate(InterpolationMethods::bilinearAdjust, angle));
+                    }
+                } catch (final NumberFormatException ex) {
+                }
             }
         });
         miScale.addActionListener(new ActionListener() {

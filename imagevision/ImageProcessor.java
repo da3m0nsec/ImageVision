@@ -8,7 +8,7 @@ import java.util.*;
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.lang.*;
-
+import java.awt.geom.Point2D;
 import java.awt.Point;
 import java.lang.Math;
 
@@ -22,7 +22,6 @@ class ImageProcessor {
     private double entropy;
     private double brightness;
     private double contrast;
-
     public double getEntropy() {
         return entropy;
     }
@@ -193,15 +192,57 @@ class ImageProcessor {
         }
         return new ImageProcessor(buf, fileName);
     }
+    private static Point2D matrixMultRot(double angle, Point2D p) {
+        var pn = new Point2D.Double();
+        pn.x = p.getX()*Math.cos(angle) - p.getY()*Math.sin(angle);
+        pn.y = p.getX()*Math.sin(angle) + p.getY()*Math.cos(angle);
+        return pn;
+    }
+    public ImageProcessor rotate(InterpolationMethods method, double angle) {
+        var E = new Point2D.Double(0, 0);
+        var F = matrixMultRot(angle, new Point2D.Double(image.getWidth(), 0));
+        var G = matrixMultRot(angle, new Point2D.Double(0, image.getHeight()));
+        var H = matrixMultRot(angle, new Point2D.Double(image.getWidth(), image.getHeight()));
+        double N, S, W, Ea;
+        N = Math.min(E.getY(), Math.min(F.getY(), Math.min(G.getY(), H.getY())));
+        W = Math.min(E.getX(), Math.min(F.getX(), Math.min(G.getX(), H.getX())));
+        S = Math.max(E.getY(), Math.max(F.getY(), Math.max(G.getY(), H.getY())));
+        Ea= Math.max(E.getX(), Math.max(F.getX(), Math.max(G.getX(), H.getX())));
+        int width = (int)(Ea-W);
+        int height = (int)(S-N);
+        var blacky = new Color(0, 0, 0);
+        int nBlackies = 0;
+        BufferedImage buf = new BufferedImage(width, height, image.getType());
+        for (int i = 0; i < width; i++) {
+            for (int j = 0; j < height; j++) {
+                double xp = i + W;
+                double yp = j + N;
+                var originalPos = matrixMultRot(-angle, new Point2D.Double(xp, yp));
+                if (originalPos.getX() >= getWidth() || originalPos.getX() < 0 ||
+                    originalPos.getY() >= getHeight() || originalPos.getY() < 0) {
+                    nBlackies++;
+                    buf.setRGB(i, j, blacky.getRGB());
+                } else {
+                    int newVal = method.method(this, buf, originalPos.getX(), originalPos.getY());
+                    buf.setRGB(i, j, new Color(newVal, newVal, newVal).getRGB());
+                }
+            }
+        }
+        var img = new ImageProcessor(buf, fileName);
+        img.subHistogram(nBlackies);
+        return img;
+    }
 
-    
-
-
+    public void subHistogram(int blackaipix) {
+        histogram[0] -= blackaipix;
+    }
     public ImageProcessor scale (InterpolationMethods method, int width, int height) {
         BufferedImage buf = new BufferedImage(width, height, image.getType());
         for (int i = 0; i < width; i++) {
             for (int j = 0; j < height; j++) {
-                int newVal = method.method(this,buf,i,j);
+                double newi = ((double) i) / buf.getWidth() * (getWidth()-1);
+                double newj = ((double) j) / buf.getHeight() * (getHeight()-1);
+                int newVal = method.method(this,buf, newi, newj);
                 buf.setRGB(i, j, new Color(newVal, newVal, newVal).getRGB());
             }
         }
@@ -334,6 +375,7 @@ class ImageProcessor {
                 histogram[pixel]++;
             }
         }
+
         cumHistogram[0] = histogram[0];
         for (int i = 1; i < histogram.length; ++i) {
             cumHistogram[i] = histogram[i] + cumHistogram[i - 1];
@@ -372,76 +414,28 @@ class ImageProcessor {
 }
 
 interface InterpolationMethods {
-    public int method (ImageProcessor in, BufferedImage out, int x, int y);
-
-    public static int nearestNeighbour(ImageProcessor in, BufferedImage out, int x, int y) {
-        var Xnear = (int) (((float) x) / out.getWidth() * (in.getWidth()-1));
-        var Ynear = (int) (((float) y) / out.getHeight() * (in.getHeight()-1));
-        return in.getPixel(Xnear,Ynear);
+    public int method (ImageProcessor in, BufferedImage out, double x, double y);
+    public static int nearestNeighbour(ImageProcessor in, BufferedImage out, double x, double y) {
+        return in.getPixel((int)x, (int)y);
     }
 
-        /*
-        //esto me suena, está feo
-        float gx = ((float) x) / out.getWidth() * (in.getWidth() -1);
-        float gy = ((float) y) / out.getHeight() * (in.getHeight() -1);
-
-        int gxi = (int) gx; //????????????
-        int gyi = (int) gy; //????????????
-
-        int grey = 0;
-
-        int a = in.getPixel(gxi+1, gyi);
-        int b = in.getPixel(gxi+1, gyi+1);
-        int c = in.getPixel(gxi, gyi);
-        int d = in.getPixel(gxi, gyi+1);
-
-        int p = x-gxi;
-        int q = y-gyi;
-
-        //grey = ImageProcessor.clamp(c+(d-c)*p+(a-c)*q+(b+c-a-d)*p*q,0,255);
-        /*
-        float hi = (gxi+1-x)*a + (x-gxi)*b;
-        float hii = (gxi+1-x)*c + (x-gxi)*d;
-        float yi = (gyi+1-y)*hi + (y-gyi)*hii;
-        grey = ImageProcessor.clamp(yi, 0, 255);
-        
-        float hi = c*(1-x) + a*x;
-        float hii = d*(1-x) + b*x;
-        float yi = hi*(1-y) + hii*y;
-        grey = ImageProcessor.clamp(yi, 0, 255);
-
-        /*
-        for (int i=0; i<=2; ++i){
-            float b00 = get(c00, i);
-            float b10 = get(c10, i);
-            float b01 = get(c01, i);
-            float b11 = get(c11, i);
-
-            int ble = ((int) blerp(b00,b10,b01,b11,gx-gxi,gy-gyi)) << (8*i);
-            grey = grey | ble;
-        }
-       
-        return grey;
-        */
         /* gets the 'n'th byte of a 4-byte integer */
     private static int get(int self, int n) {
         return (self >> (n * 8)) & 0xFF;
     }
  
-    private static float lerp(float s, float e, float t) {
+    private static double lerp(double s, double e, double t) {
         return s + (e - s) * t;
     }
  
-    private static float blerp(final Float c00, float c10, float c01, float c11, float tx, float ty) {
+    private static double blerp(final Double c00, double c10, double c01, double c11, double tx, double ty) {
         return lerp(lerp(c00, c10, tx), lerp(c01, c11, tx), ty);
     }
  
-    //private static BufferedImage scale(BufferedImage self, float scaleX, float scaleY) {
-    public static int bilinearAdjust (ImageProcessor self, BufferedImage newImage, int x, int y) {
+    //private static BufferedImage scale(BufferedImage self, double scaleX, double scaleY) {
+    public static int bilinearAdjust (ImageProcessor self, BufferedImage newImage, double gx, double gy) {
     
         //BufferedImage newImage = new BufferedImage(newWidth, newHeight, self.getType());
-        float gx = ((float) x) / newImage.getWidth() * (self.getWidth() -1);
-        float gy = ((float) y) / newImage.getHeight() * (self.getHeight() -1);
 
         int gxi = (int) gx; //????????????
         int gyi = (int) gy; //????????????
@@ -451,10 +445,10 @@ interface InterpolationMethods {
         int c01 = self.getPixel(gxi, gyi + 1);
         int c11 = self.getPixel(gxi + 1, gyi + 1);
         for (int i = 0; i <= 2; ++i) {
-            float b00 = get(c00, i);
-            float b10 = get(c10, i);
-            float b01 = get(c01, i);
-            float b11 = get(c11, i);
+            double b00 = get(c00, i);
+            double b10 = get(c10, i);
+            double b01 = get(c01, i);
+            double b11 = get(c11, i);
             int ble = ((int) blerp(b00, b10, b01, b11, gx - gxi, gy - gyi)) << (8 * i);
             rgb = rgb | ble;
         }
