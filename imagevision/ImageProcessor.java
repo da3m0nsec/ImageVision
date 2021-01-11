@@ -18,7 +18,7 @@ class ImageProcessor {
     private double[] histogram = new double[256];
     public double[] cumHistogram = new double[256];
     private String mimeType;
-    private int minGray = 256, maxGray = 0;
+    private int minGray = 256, maxGray = 0, blackies = 0;
     private double entropy;
     private double brightness;
     private double contrast;
@@ -229,7 +229,7 @@ class ImageProcessor {
             }
         }
         var img = new ImageProcessor(buf, fileName);
-        img.subHistogram(nBlackies);
+        img.blackies = nBlackies;
         return img;
     }
 
@@ -286,11 +286,15 @@ class ImageProcessor {
     }
 
     public double[] getGrayValues() {
-        var data = new double[getSize()];
-        int k = 0;
+        var data = new double[getSize()-blackies];
+        int k = 0, nblackies = blackies;
         for (int i = 0; i < image.getWidth(); i++) {
             for (int j = 0; j < image.getHeight(); j++) {
                 int pixel = getPixel(i, j);
+                if (pixel == 0 && nblackies >0){
+                    nblackies--;
+                    continue;
+                }
                 data[k++] = pixel;
             }
         }
@@ -436,7 +440,12 @@ interface InterpolationMethods {
     public static int bilinearAdjust (ImageProcessor self, BufferedImage newImage, double gx, double gy) {
     
         //BufferedImage newImage = new BufferedImage(newWidth, newHeight, self.getType());
-
+        if (gx >= self.getWidth()-1){
+            gx--;
+        }
+        if (gy >= self.getHeight()-1){
+            gy--;
+        }
         int gxi = (int) gx; //????????????
         int gyi = (int) gy; //????????????
         int rgb = 0;
