@@ -209,7 +209,7 @@ class ImageProcessor {
         S = Math.max(E.getY(), Math.max(F.getY(), Math.max(G.getY(), H.getY())));
         Ea= Math.max(E.getX(), Math.max(F.getX(), Math.max(G.getX(), H.getX())));
         int width = (int)(Ea-W);
-        int height = (int)(S-N);
+        int height = (int)(S-N+30); //hack
         var blacky = new Color(0, 0, 0);
         int nBlackies = 0;
         BufferedImage buf = new BufferedImage(width, height, image.getType());
@@ -240,9 +240,14 @@ class ImageProcessor {
         BufferedImage buf = new BufferedImage(width, height, image.getType());
         for (int i = 0; i < width; i++) {
             for (int j = 0; j < height; j++) {
-                double newi = ((double) i) / buf.getWidth() * (getWidth()-1);
-                double newj = ((double) j) / buf.getHeight() * (getHeight()-1);
+                double newi = ((double) i) / buf.getWidth() * (getWidth());//................
+                double newj = ((double) j) / buf.getHeight() * (getHeight());
                 int newVal = method.method(this,buf, newi, newj);
+                /*
+                if (width < getWidth()){
+                    newVal = InterpolationMethods.nearestNeighbour(this,buf, newi, newj);
+                }
+                */
                 buf.setRGB(i, j, new Color(newVal, newVal, newVal).getRGB());
             }
         }
@@ -420,7 +425,7 @@ class ImageProcessor {
 interface InterpolationMethods {
     public int method (ImageProcessor in, BufferedImage out, double x, double y);
     public static int nearestNeighbour(ImageProcessor in, BufferedImage out, double x, double y) {
-        return in.getPixel((int)x, (int)y);
+        return in.getPixel((int)(x), (int)(y));
     }
 
         /* gets the 'n'th byte of a 4-byte integer */
@@ -449,10 +454,10 @@ interface InterpolationMethods {
         int gxi = (int) gx; //????????????
         int gyi = (int) gy; //????????????
         int rgb = 0;
-        int c00 = self.getPixel(gxi, gyi);
-        int c10 = self.getPixel(gxi + 1, gyi);
-        int c01 = self.getPixel(gxi, gyi + 1);
-        int c11 = self.getPixel(gxi + 1, gyi + 1);
+        int c00 = self.getPixel((int)Math.floor(gx), (int)Math.floor(gy));
+        int c10 = self.getPixel((int)Math.ceil(gx), (int)Math.floor(gy));
+        int c01 = self.getPixel((int)Math.floor(gx), (int)Math.ceil(gy));
+        int c11 = self.getPixel((int)Math.floor(gx), (int)Math.floor(gy));
         for (int i = 0; i <= 2; ++i) {
             double b00 = get(c00, i);
             double b10 = get(c10, i);
